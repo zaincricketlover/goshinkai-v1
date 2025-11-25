@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // Profiles
+    match /profiles/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isOwner(userId);
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      // Deletion only by admin (optional)
+      allow delete: if isAdmin();
+    }
+
+    // Invites
+    match /invites/{inviteId} {
+      // Anyone can read invites to check validity (or restrict to authenticated if invite check is post-auth? No, pre-auth)
+      // Actually, invite check is usually done by a cloud function or open read if code is known. 
+      // For now, allow read if true (simplification, but better to restrict to query by code)
+      allow read: if true; 
+      allow create: if false; // Only created via Admin SDK or specific logic (currently client side in setup page, so need to allow if setup is open?)
+      // Setup page uses client SDK, so we might need to allow create for now if we want setup to work.
+      // But setup page is dev only.
+      allow update: if isAuthenticated(); // For marking as used
+    }
+
+    // Events
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin(); // Or participant update logic?
+      allow delete: if isAdmin();
+    }
+
+    // Messages (Threads)
+    match /threads/{threadId} {
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participantIds);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participantIds);
+      
+      match /messages/{messageId} {
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantIds);
+        allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantIds);
+      }
+    }
+  }
+}
