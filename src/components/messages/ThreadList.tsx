@@ -22,14 +22,19 @@ export const ThreadList: React.FC<ThreadListProps> = ({ threads }) => {
 
     const formatTime = (timestamp?: Timestamp) => {
         if (!timestamp) return '';
-        const date = timestamp.toDate();
-        const now = new Date();
-        const isToday = date.toDateString() === now.toDateString();
+        try {
+            const date = timestamp.toDate();
+            const now = new Date();
+            const isToday = date.toDateString() === now.toDateString();
 
-        if (isToday) {
-            return new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(date);
+            if (isToday) {
+                return new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(date);
+            }
+            return new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric' }).format(date);
+        } catch (error) {
+            console.error('Error formatting time:', error);
+            return '';
         }
-        return new Intl.DateTimeFormat('ja-JP', { month: 'numeric', day: 'numeric' }).format(date);
     };
 
     if (threads.length === 0) {

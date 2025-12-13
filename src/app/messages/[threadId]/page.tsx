@@ -94,8 +94,8 @@ export default function ChatPage({ params }: { params: Promise<{ threadId: strin
 
             // Sort by createdAt
             uniqueMessages.sort((a, b) => {
-                const timeA = a.createdAt?.toMillis?.() || 0;
-                const timeB = b.createdAt?.toMillis?.() || 0;
+                const timeA = a.createdAt?.toMillis?.() || a.createdAt?.seconds || 0;
+                const timeB = b.createdAt?.toMillis?.() || b.createdAt?.seconds || 0;
                 return timeA - timeB;
             });
 

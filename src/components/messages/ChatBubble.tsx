@@ -11,8 +11,13 @@ interface ChatBubbleProps {
 }
 
 export const ChatBubble: React.FC<ChatBubbleProps> = ({ message, isOwn, showAvatar, avatarUrl }) => {
-    const formatTime = (timestamp: Timestamp) => {
-        return new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(timestamp.toDate());
+    const formatTime = (timestamp?: Timestamp) => {
+        if (!timestamp) return '';
+        try {
+            return new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(timestamp.toDate());
+        } catch (error) {
+            return '';
+        }
     };
 
     return (

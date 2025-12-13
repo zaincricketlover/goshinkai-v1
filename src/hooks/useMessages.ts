@@ -104,8 +104,8 @@ export const useMessages = (userId: string | undefined) => {
 
             // 4. Sort
             threadsData.sort((a, b) => {
-                const timeA = a.lastMessageAt?.toMillis() || 0;
-                const timeB = b.lastMessageAt?.toMillis() || 0;
+                const timeA = a.lastMessageAt?.toMillis?.() || 0;
+                const timeB = b.lastMessageAt?.toMillis?.() || 0;
                 return timeB - timeA;
             });
 
