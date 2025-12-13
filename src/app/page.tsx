@@ -22,7 +22,7 @@ export default function LandingPage() {
           className="text-center mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: "easeOut" }}
+          transition={{ duration: 0.8, ease: "easeOut" as const }}
         >
           <motion.h2
             className="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-accent via-yellow-200 to-accent tracking-tight mb-2 drop-shadow-sm"

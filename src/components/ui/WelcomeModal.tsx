@@ -36,7 +36,7 @@ export const WelcomeModal: React.FC<WelcomeModalProps> = ({ isOpen, onClose, nam
                             initial={{ scale: 0.8, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.8, opacity: 0 }}
-                            transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" }}
+                            transition={{ delay: 0.2, duration: 0.5, ease: "easeOut" as const }}
                             className="text-center max-w-md"
                         >
                             <motion.div
