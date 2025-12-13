@@ -12,6 +12,9 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+import { getStorage } from "firebase/storage";
+
+// Initialize Firebase
 // Initialize Firebase
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
@@ -19,5 +22,6 @@ const auth = getAuth(app);
 const db = initializeFirestore(app, {
     experimentalForceLongPolling: true,
 });
+const storage = getStorage(app);
 
-export { app, auth, db };
+export { app, auth, db, storage };

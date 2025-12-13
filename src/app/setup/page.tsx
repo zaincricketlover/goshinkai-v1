@@ -10,25 +10,28 @@ import { Input } from '@/components/ui/Input';
 export default function SetupPage() {
     const [code, setCode] = useState('');
     const [message, setMessage] = useState('');
+    const [isSuccess, setIsSuccess] = useState(false);
 
     const handleCreateInvite = async () => {
         const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
         const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
         if (!apiKey || !projectId) {
-            alert("Firebase設定が見つかりません。.env.localを確認してください。");
+            setMessage("Firebase設定が見つかりません。.env.localを確認してください。");
+            setIsSuccess(false);
             return;
         }
 
         if (!code) {
-            alert("コードを入力してください");
+            setMessage("コードを入力してください");
+            setIsSuccess(false);
             return;
         }
 
         try {
             setMessage("処理中... (認証接続テスト)");
+            setIsSuccess(false);
 
-            // Dynamic import to avoid SSR issues with Auth if any
             const { signInAnonymously } = await import("firebase/auth");
             const { auth } = await import("@/lib/firebase");
 
@@ -36,54 +39,73 @@ export default function SetupPage() {
 
             setMessage("処理中... (Firestore書き込み)");
 
-            // Step 2: Try Firestore with timeout
             const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Firestoreへの接続がタイムアウトしました。ネットワーク接続やFirebase設定を確認してください。")), 5000)
+                setTimeout(() => reject(new Error("Firestoreへの接続がタイムアウトしました。")), 5000)
             );
 
             const colRef = collection(db, 'invites');
 
             await Promise.race([
                 addDoc(colRef, {
-                    code,
-                    invitedByUserId: 'system',
-                    usedByUserId: null,
+                    code: code.toUpperCase(),
+                    createdBy: 'system',
                     createdAt: serverTimestamp(),
+                    isActive: true,
+                    useCount: 0,
+                    maxUses: null,
                 }),
                 timeoutPromise
             ]);
 
-            setMessage(`招待コード "${code}" を作成しました。`);
-            alert(`成功！招待コード "${code}" を作成しました。`);
+            setMessage(`招待コード "${code.toUpperCase()}" を作成しました。`);
+            setIsSuccess(true);
             setCode('');
         } catch (error: any) {
             console.error("Detailed Error:", error);
             setMessage(`エラー: ${error.message}`);
-            alert(`エラーが発生しました:\n${error.message}\n\nコンソールのログ設定値を確認してください。`);
+            setIsSuccess(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-primary py-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-md mx-auto">
-                <Card title="初期データセットアップ">
-                    <div className="space-y-4">
+                <div className="text-center mb-8">
+                    <h1 className="text-3xl font-bold text-white mb-2">初期データセットアップ</h1>
+                    <p className="text-gray-400">システム管理者用</p>
+                </div>
+
+                <Card>
+                    <div className="space-y-6">
                         <div>
-                            <h4 className="font-medium text-gray-900">招待コード作成</h4>
-                            <div className="mt-2 flex gap-2">
+                            <h3 className="text-lg font-bold text-white mb-4">招待コード作成</h3>
+                            <div className="space-y-4">
                                 <Input
                                     value={code}
-                                    onChange={(e) => setCode(e.target.value)}
+                                    onChange={(e) => setCode(e.target.value.toUpperCase())}
                                     placeholder="INVITE-CODE"
+                                    label="招待コード"
                                 />
-                                <Button onClick={handleCreateInvite}>作成</Button>
+                                <Button onClick={handleCreateInvite} variant="gold" className="w-full">
+                                    コードを作成
+                                </Button>
                             </div>
                         </div>
+
                         {message && (
-                            <div className="p-2 bg-blue-50 text-blue-700 rounded text-sm">
-                                {message}
+                            <div className={`p-4 rounded-lg ${isSuccess
+                                    ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+                                    : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+                                }`}>
+                                <p className="text-sm">{message}</p>
                             </div>
                         )}
+
+                        <div className="pt-4 border-t border-white/10">
+                            <p className="text-xs text-gray-500 text-center">
+                                このページは開発・テスト用です。本番環境では管理画面から招待コードを発行してください。
+                            </p>
+                        </div>
                     </div>
                 </Card>
             </div>

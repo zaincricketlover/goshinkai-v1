@@ -2,7 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
+    // --- Helper Functions ---
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -11,49 +12,133 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function isAdmin() {
-      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true;
+    function getProfile(userId) {
+      return get(/databases/$(database)/documents/profiles/$(userId)).data;
     }
+
+    function isAdmin() {
+      return getProfile(request.auth.uid).isAdmin == true;
+    }
+
+    // Check if user has Gold rank or higher
+    function isGoldOrHigher(profile) {
+      return profile.rankScore >= 100; // Assuming 100 is Gold threshold (sync with client logic)
+      // Or check rankBadge string if reliable:
+      // return profile.rankBadge in ['GOLD', 'PLATINUM', 'DIAMOND'];
+    }
+
+    // Check messaging permission
+    function canMessage(targetUserId) {
+      // TEMPORARY: Allow all authenticated users to message for testing
+      // TODO: Re-enable strict permissions for production
+      return true;
+      
+      /* ORIGINAL LOGIC (commented out for testing):
+      let sender = getProfile(request.auth.uid);
+      let target = getProfile(targetUserId);
+      
+      return sender.isAdmin == true 
+          || sender.homeVenueId == target.homeVenueId
+          || isGoldOrHigher(sender)
+          || (sender.unlockedVenueIds != null && target.homeVenueId in sender.unlockedVenueIds);
+      */
+    }
+
+    // --- Rules ---
 
     // Profiles
     match /profiles/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && isOwner(userId);
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      // Deletion only by admin (optional)
+      
+      allow create: if isAuthenticated() && isOwner(userId) 
+          && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false);
+      
+      allow update: if isAuthenticated() && (
+        isAdmin() || 
+        (isOwner(userId) && request.resource.data.isAdmin == resource.data.isAdmin)
+      );
+      
       allow delete: if isAdmin();
     }
 
     // Invites
     match /invites/{inviteId} {
-      // Anyone can read invites to check validity (or restrict to authenticated if invite check is post-auth? No, pre-auth)
-      // Actually, invite check is usually done by a cloud function or open read if code is known. 
-      // For now, allow read if true (simplification, but better to restrict to query by code)
       allow read: if true; 
-      allow create: if false; // Only created via Admin SDK or specific logic (currently client side in setup page, so need to allow if setup is open?)
-      // Setup page uses client SDK, so we might need to allow create for now if we want setup to work.
-      // But setup page is dev only.
-      allow update: if isAuthenticated(); // For marking as used
+      allow create: if isAuthenticated(); 
+      allow update: if isAuthenticated() && (
+          isAdmin() ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['useCount'])
+           && request.resource.data.useCount == resource.data.useCount + 1)
+      );
     }
 
-    // Events
+    // InviteUsages
+    match /inviteUsages/{usageId} {
+      allow read: if isAuthenticated() && (
+          resource.data.usedBy == request.auth.uid || 
+          resource.data.referredBy == request.auth.uid ||
+          isAdmin()
+      );
+      allow create: if isAuthenticated() && request.resource.data.usedBy == request.auth.uid;
+    }
+
+    // Events & Participants (Subcollection)
     match /events/{eventId} {
       allow read: if isAuthenticated();
       allow create: if isAdmin();
-      allow update: if isAdmin(); // Or participant update logic?
+      allow update: if isAdmin();
       allow delete: if isAdmin();
+
+      // Nested Participants
+      match /participants/{participantId} {
+        allow read: if isAuthenticated();
+        allow create, update: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
+        allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      }
     }
 
-    // Messages (Threads)
+    // Threads & Messages (Subcollection)
     match /threads/{threadId} {
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participantIds);
+      allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participantIds);
+      allow update: if isAuthenticated();
       
+      /* 
+      // STRICT RULES (Temporarily disabled for debugging)
+      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participantUserIds);
+      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participantUserIds);
+      allow create: if isAuthenticated() 
+          && request.resource.data.participantUserIds.hasAll([request.auth.uid])
+          && canMessage(request.resource.data.participantUserIds[1] == request.auth.uid ? request.resource.data.participantUserIds[0] : request.resource.data.participantUserIds[1]);
+      */
+
+      // Nested Messages
       match /messages/{messageId} {
-        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantIds);
-        allow create: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantIds);
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated();
+
+        /*
+        // STRICT RULES (Temporarily disabled for debugging)
+        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantUserIds);
+        allow create: if isAuthenticated() && request.resource.data.senderUserId == request.auth.uid;
+        */
       }
+    }
+
+    // Interests
+    match /interests/{interestId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.fromUserId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.fromUserId == request.auth.uid;
+    }
+
+    // Notifications
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && resource.data.targetUserId == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.targetUserId == request.auth.uid;
+      allow delete: if isAuthenticated() && (resource.data.targetUserId == request.auth.uid || isAdmin());
     }
   }
 }

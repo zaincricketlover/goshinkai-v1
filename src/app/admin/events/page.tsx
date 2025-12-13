@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { isAdmin } from '@/lib/permissions';
 import { Event, VenueId } from '@/lib/types';
+import { Calendar, MapPin } from 'lucide-react';
 
 export default function AdminEventsPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -28,7 +29,6 @@ export default function AdminEventsPage() {
 
     useEffect(() => {
         if (authLoading) return;
-
         if (!user || !profile || !isAdmin(profile)) {
             router.push('/');
             return;
@@ -44,7 +44,6 @@ export default function AdminEventsPage() {
             eventsSnap.forEach(doc => {
                 eventsList.push({ id: doc.id, ...doc.data() } as Event);
             });
-            // Sort by date desc
             eventsList.sort((a, b) => b.dateTime.seconds - a.dateTime.seconds);
             setEvents(eventsList);
         } catch (error) {
@@ -72,7 +71,6 @@ export default function AdminEventsPage() {
             });
 
             alert('イベントを作成しました');
-            // Reset form
             setTitle('');
             setDescription('');
             setDateTime('');
@@ -89,15 +87,24 @@ export default function AdminEventsPage() {
         }
     };
 
-    if (authLoading || loading) return <div className="p-8">Loading...</div>;
+    if (authLoading || loading) {
+        return (
+            <div className="min-h-screen bg-primary flex items-center justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div>
+            </div>
+        );
+    }
 
     if (!user || !profile || !isAdmin(profile)) return null;
 
     return (
-        <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="min-h-screen bg-primary py-8 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
                 <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900">イベント管理</h1>
+                    <div>
+                        <h1 className="text-3xl font-bold text-white">イベント管理</h1>
+                        <p className="text-gray-400 mt-1">イベントの作成・編集</p>
+                    </div>
                     <Button onClick={() => router.push('/admin')} variant="outline">
                         ダッシュボードに戻る
                     </Button>
@@ -105,99 +112,98 @@ export default function AdminEventsPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Create Event Form */}
-                    <div className="lg:col-span-1">
-                        <Card title="新規イベント作成">
-                            <form onSubmit={handleCreateEvent} className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">タイトル</label>
-                                    <Input
-                                        value={title}
-                                        onChange={(e) => setTitle(e.target.value)}
-                                        required
-                                        placeholder="例: 大阪交流会"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">日時</label>
-                                    <Input
-                                        type="datetime-local"
-                                        value={dateTime}
-                                        onChange={(e) => setDateTime(e.target.value)}
-                                        required
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">場所</label>
-                                    <Input
-                                        value={location}
-                                        onChange={(e) => setLocation(e.target.value)}
-                                        required
-                                        placeholder="例: 梅田スカイビル"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">開催拠点</label>
-                                    <select
-                                        value={venueId}
-                                        onChange={(e) => setVenueId(e.target.value as VenueId)}
-                                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-                                    >
-                                        <option value="osaka">大阪</option>
-                                        <option value="kobe">神戸</option>
-                                        <option value="tokyo">東京</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700">詳細</label>
-                                    <textarea
-                                        value={description}
-                                        onChange={(e) => setDescription(e.target.value)}
-                                        required
-                                        rows={4}
-                                        className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    />
-                                </div>
-                                <div className="flex items-center">
-                                    <input
-                                        id="isOpenToAllVenues"
-                                        type="checkbox"
-                                        checked={isOpenToAllVenues}
-                                        onChange={(e) => setIsOpenToAllVenues(e.target.checked)}
-                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                    />
-                                    <label htmlFor="isOpenToAllVenues" className="ml-2 block text-sm text-gray-900">
-                                        全拠点参加可能にする
-                                    </label>
-                                </div>
-                                <Button type="submit" isLoading={creating} className="w-full">
-                                    作成する
-                                </Button>
-                            </form>
-                        </Card>
-                    </div>
+                    <Card title="新規イベント作成" className="lg:col-span-1">
+                        <form onSubmit={handleCreateEvent} className="space-y-4">
+                            <Input
+                                label="タイトル"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                required
+                                placeholder="例: 大阪交流会"
+                            />
+                            <Input
+                                label="日時"
+                                type="datetime-local"
+                                value={dateTime}
+                                onChange={(e) => setDateTime(e.target.value)}
+                                required
+                            />
+                            <Input
+                                label="場所"
+                                value={location}
+                                onChange={(e) => setLocation(e.target.value)}
+                                required
+                                placeholder="例: 梅田スカイビル"
+                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">開催拠点</label>
+                                <select
+                                    value={venueId}
+                                    onChange={(e) => setVenueId(e.target.value as VenueId)}
+                                    className="block w-full bg-surface-elevated border border-white/10 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-accent"
+                                >
+                                    <option value="osaka">大阪</option>
+                                    <option value="kobe">神戸</option>
+                                    <option value="tokyo">東京</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">詳細</label>
+                                <textarea
+                                    value={description}
+                                    onChange={(e) => setDescription(e.target.value)}
+                                    required
+                                    rows={4}
+                                    className="block w-full bg-surface-elevated border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent"
+                                    placeholder="イベントの詳細を入力..."
+                                />
+                            </div>
+                            <div className="flex items-center">
+                                <input
+                                    id="isOpenToAllVenues"
+                                    type="checkbox"
+                                    checked={isOpenToAllVenues}
+                                    onChange={(e) => setIsOpenToAllVenues(e.target.checked)}
+                                    className="h-4 w-4 text-accent focus:ring-accent border-gray-300 rounded"
+                                />
+                                <label htmlFor="isOpenToAllVenues" className="ml-2 block text-sm text-gray-300">
+                                    全拠点参加可能にする
+                                </label>
+                            </div>
+                            <Button type="submit" isLoading={creating} variant="gold" className="w-full">
+                                作成する
+                            </Button>
+                        </form>
+                    </Card>
 
                     {/* Event List */}
-                    <div className="lg:col-span-2">
-                        <Card title="イベント一覧">
-                            <div className="space-y-4">
-                                {events.map((event) => (
-                                    <div key={event.id} className="border border-gray-200 rounded-lg p-4 flex justify-between items-center">
-                                        <div>
-                                            <h3 className="text-lg font-medium text-gray-900">{event.title}</h3>
-                                            <p className="text-sm text-gray-500">
-                                                {event.dateTime.toDate().toLocaleString()} @ {event.location} ({event.venueId})
-                                            </p>
-                                        </div>
-                                        <div className="flex space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => router.push(`/events/${event.id}`)}>
-                                                詳細
-                                            </Button>
+                    <Card title="イベント一覧" className="lg:col-span-2">
+                        <div className="space-y-3">
+                            {events.map((event) => (
+                                <div key={event.id} className="glass rounded-xl p-4 flex justify-between items-center hover:bg-white/5 transition-colors">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-medium text-white mb-1">{event.title}</h3>
+                                        <div className="flex items-center text-sm text-gray-400 space-x-4">
+                                            <div className="flex items-center">
+                                                <Calendar className="w-4 h-4 mr-1" />
+                                                {event.dateTime.toDate().toLocaleString('ja-JP')}
+                                            </div>
+                                            <div className="flex items-center">
+                                                <MapPin className="w-4 h-4 mr-1" />
+                                                {event.location}
+                                            </div>
+                                            <span className="px-2 py-0.5 bg-accent/20 text-accent text-xs rounded-full">
+                                                {event.venueId}
+                                            </span>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        </Card>
-                    </div>
+                                    <Button size="sm" variant="outline" onClick={() => router.push(`/events/${event.id}`)}>
+                                        詳細
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </Card>
                 </div>
             </div>
         </div>

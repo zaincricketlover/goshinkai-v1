@@ -36,3 +36,16 @@ export function canSendDirectMessage(
 ): boolean {
     return canViewProfileDetail(current, target);
 }
+
+export function canViewWebsite(
+    current: UserProfile,
+    target: UserProfile
+): boolean {
+    if (!target.websiteUrl) return false;
+    if (current.userId === target.userId) return true;
+    if (isAdmin(current)) return true;
+
+    // Silver or higher can view website
+    const visibleBadges: RankBadge[] = ["SILVER", "GOLD", "DIAMOND", "PLATINUM"];
+    return visibleBadges.includes(target.rankBadge);
+}

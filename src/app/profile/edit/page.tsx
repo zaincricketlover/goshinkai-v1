@@ -1,207 +1,151 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { doc, updateDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '@/lib/firebase';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { VenueId } from '@/lib/types';
+import { Avatar } from '@/components/ui/Avatar';
+import { Camera, Save, ArrowLeft } from 'lucide-react';
+import { toast } from 'sonner';
 
-const VENUES: { id: VenueId; name: string }[] = [
-    { id: 'osaka', name: '大阪' },
-    { id: 'kobe', name: '神戸' },
-    { id: 'tokyo', name: '東京' },
-];
-
-export default function ProfileEditPage() {
-    const { user, profile, loading } = useAuth();
+export default function EditProfilePage() {
+    const { profile, loading: authLoading } = useAuth();
     const router = useRouter();
-
-    const [name, setName] = useState('');
-    const [kana, setKana] = useState('');
-    const [companyName, setCompanyName] = useState('');
-    const [title, setTitle] = useState('');
-    const [homeVenueId, setHomeVenueId] = useState<VenueId>('osaka');
-    const [catchCopy, setCatchCopy] = useState('');
-    const [bio, setBio] = useState('');
-    const [wantTags, setWantTags] = useState('');
-    const [giveTags, setGiveTags] = useState('');
     const [saving, setSaving] = useState(false);
-    const [error, setError] = useState('');
-    const [dataLoaded, setDataLoaded] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Fetch fresh profile data from Firestore
-    useEffect(() => {
-        const fetchLatestProfile = async () => {
-            if (user && !dataLoaded) {
-                try {
-                    const profileRef = doc(db, 'profiles', user.uid);
-                    const profileSnap = await getDoc(profileRef);
+    // Form States
+    const [name, setName] = useState(profile?.name || '');
+    const [companyName, setCompanyName] = useState(profile?.companyName || '');
+    const [title, setTitle] = useState(profile?.title || '');
+    const [bio, setBio] = useState(profile?.bio || '');
+    const [catchCopy, setCatchCopy] = useState(profile?.catchCopy || '');
+    const [wantTags, setWantTags] = useState(profile?.wantTags?.join(', ') || '');
+    const [giveTags, setGiveTags] = useState(profile?.giveTags?.join(', ') || '');
+    const [industries, setIndustries] = useState(profile?.industries?.join(', ') || '');
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatarUrl || null);
 
-                    if (profileSnap.exists()) {
-                        const latestProfile = profileSnap.data();
-                        setName(latestProfile.name || '');
-                        setKana(latestProfile.kana || '');
-                        setCompanyName(latestProfile.companyName || '');
-                        setTitle(latestProfile.title || '');
-                        setHomeVenueId(latestProfile.homeVenueId || 'osaka');
-                        setCatchCopy(latestProfile.catchCopy || '');
-                        setBio(latestProfile.bio || '');
-                        setWantTags(latestProfile.wantTags?.join(', ') || '');
-                        setGiveTags(latestProfile.giveTags?.join(', ') || '');
-                        setDataLoaded(true);
-                    }
-                } catch (error) {
-                    console.error('Error fetching latest profile:', error);
-                }
-            }
-        };
+    // Update state when profile loads
+    React.useEffect(() => {
+        if (profile) {
+            setName(profile.name);
+            setCompanyName(profile.companyName);
+            setTitle(profile.title);
+            setBio(profile.bio || '');
+            setCatchCopy(profile.catchCopy || '');
+            setWantTags(profile.wantTags?.join(', ') || '');
+            setGiveTags(profile.giveTags?.join(', ') || '');
+            setIndustries(profile.industries?.join(', ') || '');
+            setAvatarPreview(profile.avatarUrl || null);
+        }
+    }, [profile]);
 
-        fetchLatestProfile();
-    }, [user, dataLoaded]);
+    if (authLoading) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div></div>;
+    if (!profile) { router.push('/'); return null; }
 
-    if (loading) return <div className="p-8">Loading...</div>;
-
-    if (!user) {
-        router.push('/');
-        return null;
-    }
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 5 * 1024 * 1024) { toast.error('画像サイズは5MB以下にしてください'); return; }
+            setAvatarFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => setAvatarPreview(reader.result as string);
+            reader.readAsDataURL(file);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
         setSaving(true);
-
         try {
-            const profileRef = doc(db, 'profiles', user.uid);
-            await updateDoc(profileRef, {
-                name,
-                kana,
-                companyName,
-                title,
-                homeVenueId,
-                catchCopy,
-                bio,
-                wantTags: wantTags.split(',').map(tag => tag.trim()).filter(tag => tag),
-                giveTags: giveTags.split(',').map(tag => tag.trim()).filter(tag => tag),
+            let avatarUrl = profile.avatarUrl;
+            if (avatarFile) {
+                const storageRef = ref(storage, `avatars/${profile.userId}`);
+                await uploadBytes(storageRef, avatarFile);
+                avatarUrl = await getDownloadURL(storageRef);
+            }
+
+            const splitTags = (str: string) => str.split(',').map(s => s.trim()).filter(s => s);
+
+            await updateDoc(doc(db, 'profiles', profile.userId), {
+                name, companyName, title, bio, catchCopy, avatarUrl,
+                wantTags: splitTags(wantTags),
+                giveTags: splitTags(giveTags),
+                industries: splitTags(industries),
+                updatedAt: new Date()
             });
 
-            router.push(`/profile/${user.uid}`);
-        } catch (err: any) {
-            console.error(err);
-            setError('保存中にエラーが発生しました。');
+            toast.success('プロフィールを更新しました');
+            router.push(`/profile/${profile.userId}`);
+        } catch (error) {
+            console.error(error);
+            toast.error('更新に失敗しました');
         } finally {
             setSaving(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto">
-                <Card title="プロフィール編集">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                            <Input
-                                label="お名前"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                required
-                                placeholder="山田 太郎"
-                            />
-                            <Input
-                                label="ふりがな"
-                                value={kana}
-                                onChange={(e) => setKana(e.target.value)}
-                                placeholder="やまだ たろう"
-                            />
-                        </div>
+        <div className="min-h-screen bg-primary pb-24 px-4 py-6">
+            <div className="max-w-2xl mx-auto">
+                <div className="flex items-center mb-6">
+                    <button onClick={() => router.back()} className="mr-4 p-2 rounded-full hover:bg-white/5 text-gray-300"><ArrowLeft className="w-6 h-6" /></button>
+                    <h1 className="text-2xl font-bold text-white">プロフィール編集</h1>
+                </div>
 
-                        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                            <Input
-                                label="会社名"
-                                value={companyName}
-                                onChange={(e) => setCompanyName(e.target.value)}
-                                placeholder="株式会社サンプル"
-                            />
-                            <Input
-                                label="役職"
-                                value={title}
-                                onChange={(e) => setTitle(e.target.value)}
-                                placeholder="代表取締役"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                ホーム拠点
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <Card>
+                        <div className="flex flex-col items-center mb-6">
+                            <div className="relative mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                                <Avatar src={avatarPreview} alt={name} size="xl" />
+                                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Camera className="w-8 h-8 text-white" />
+                                </div>
+                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                            </div>
+                            <label className="cursor-pointer bg-surface-elevated border border-white/10 py-2 px-4 rounded-xl text-sm text-gray-300 hover:bg-white/5 transition-colors">
+                                画像を変更
                             </label>
-                            <select
-                                value={homeVenueId}
-                                onChange={(e) => setHomeVenueId(e.target.value as VenueId)}
-                                className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md border"
-                            >
-                                {VENUES.map((venue) => (
-                                    <option key={venue.id} value={venue.id}>
-                                        {venue.name}
-                                    </option>
-                                ))}
-                            </select>
                         </div>
 
-                        <Input
-                            label="キャッチコピー"
-                            value={catchCopy}
-                            onChange={(e) => setCatchCopy(e.target.value)}
-                            placeholder="一言で自分を表現"
-                        />
+                        <div className="space-y-4">
+                            <Input label="氏名" value={name} onChange={(e) => setName(e.target.value)} required />
+                            <Input label="会社名" value={companyName} onChange={(e) => setCompanyName(e.target.value)} required />
+                            <Input label="役職" value={title} onChange={(e) => setTitle(e.target.value)} required />
+                            <Input label="キャッチコピー" value={catchCopy} onChange={(e) => setCatchCopy(e.target.value)} placeholder="一言で自分を表すと..." />
 
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                自己紹介
-                            </label>
-                            <textarea
-                                value={bio}
-                                onChange={(e) => setBio(e.target.value)}
-                                rows={4}
-                                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                                placeholder="自己紹介文を入力してください"
-                            />
+                            <div>
+                                <label className="block text-sm font-medium text-gray-300 mb-1.5">自己紹介</label>
+                                <textarea
+                                    value={bio}
+                                    onChange={(e) => setBio(e.target.value)}
+                                    rows={4}
+                                    className="w-full bg-surface-elevated border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent"
+                                    placeholder="経歴や事業内容など"
+                                />
+                            </div>
                         </div>
+                    </Card>
 
-                        <Input
-                            label="欲しいもの（タグ、カンマ区切り）"
-                            value={wantTags}
-                            onChange={(e) => setWantTags(e.target.value)}
-                            placeholder="資金調達, マーケティング支援, エンジニア採用"
-                        />
-
-                        <Input
-                            label="提供できるもの（タグ、カンマ区切り）"
-                            value={giveTags}
-                            onChange={(e) => setGiveTags(e.target.value)}
-                            placeholder="技術顧問, 営業支援, デザインレビュー"
-                        />
-
-                        {error && <p className="text-sm text-red-600">{error}</p>}
-
-                        <div className="flex gap-4">
-                            <Button type="submit" className="flex-1" isLoading={saving}>
-                                保存
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.back()}
-                                className="flex-1"
-                            >
-                                キャンセル
-                            </Button>
+                    <Card title="タグ設定">
+                        <div className="space-y-4">
+                            <Input label="業界（カンマ区切り）" value={industries} onChange={(e) => setIndustries(e.target.value)} placeholder="IT, 不動産, 金融" />
+                            <Input label="WANT（求めていること・人）" value={wantTags} onChange={(e) => setWantTags(e.target.value)} placeholder="エンジニア採用, 資金調達, 販路拡大" />
+                            <Input label="GIVE（提供できること）" value={giveTags} onChange={(e) => setGiveTags(e.target.value)} placeholder="技術支援, 経営アドバイス, 人脈紹介" />
                         </div>
-                    </form>
-                </Card>
+                    </Card>
+
+                    <div className="flex gap-4">
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>キャンセル</Button>
+                        <Button type="submit" variant="gold" className="flex-1" isLoading={saving}><Save className="w-4 h-4 mr-2" />保存する</Button>
+                    </div>
+                </form>
             </div>
         </div>
     );

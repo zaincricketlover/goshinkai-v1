@@ -1,135 +1,130 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/Button';
-import { auth } from '@/lib/firebase';
+import { LuxuryCard } from '@/components/home/LuxuryCard';
+import { EventCountdown } from '@/components/home/EventCountdown';
+import { ActionCards } from '@/components/home/ActionCards';
+import { RecommendedMembers } from '@/components/home/RecommendedMembers';
 import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
+import { LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { WelcomeModal } from '@/components/ui/WelcomeModal';
 
 export default function HomePage() {
-    const { user, profile, loading } = useAuth();
+    const { profile, loading } = useAuth();
     const router = useRouter();
+    const [showWelcome, setShowWelcome] = useState(false);
 
-    const handleLogout = async () => {
-        await signOut(auth);
-        router.push('/');
+    useEffect(() => {
+        // 初回表示チェック（localStorageで管理）
+        const hasSeenWelcome = localStorage.getItem('goshinkai_welcome_seen');
+        if (!hasSeenWelcome && profile) {
+            setShowWelcome(true);
+        }
+    }, [profile]);
+
+    const handleCloseWelcome = () => {
+        setShowWelcome(false);
+        localStorage.setItem('goshinkai_welcome_seen', 'true');
     };
 
-    if (loading) return <div className="p-8">Loading...</div>;
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.push('/');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    };
 
-    if (!user) {
-        router.push('/');
-        return null;
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-primary flex items-center justify-center">
+                <div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div>
+            </div>
+        );
     }
 
+    if (!profile) return null;
+
+    const container = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
+            }
+        }
+    };
+
+    const fadeInUp = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+    };
+
+    const slideUp = {
+        hidden: { opacity: 0, y: 30 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
+    };
+
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex">
-                            <div className="flex-shrink-0 flex items-center">
-                                <h1 className="text-xl font-bold text-gray-800">Goshinkai</h1>
-                            </div>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/profile/${user.uid}`)}
-                            >
-                                マイプロフィール
-                            </Button>
-                            <span className="text-gray-700">
-                                {profile?.name || user.email} さん
-                            </span>
-                            <Button variant="outline" size="sm" onClick={handleLogout}>
-                                ログアウト
-                            </Button>
-                        </div>
-                    </div>
+        <div className="min-h-screen bg-primary text-white pb-24 overflow-x-hidden">
+            {profile && (
+                <WelcomeModal
+                    isOpen={showWelcome}
+                    onClose={handleCloseWelcome}
+                    name={profile.name}
+                    rankBadge={profile.rankBadge}
+                />
+            )}
+            {/* Header / Top Section */}
+            <div className="bg-primary pt-8 pb-6 px-4">
+                <div className="max-w-md mx-auto space-y-6">
+                    <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        variants={container}
+                        className="space-y-6"
+                    >
+                        <motion.section variants={slideUp}>
+                            <LuxuryCard />
+                        </motion.section>
+
+                        <motion.section variants={fadeInUp}>
+                            <EventCountdown />
+                        </motion.section>
+
+                        <motion.section variants={fadeInUp}>
+                            <ActionCards />
+                        </motion.section>
+
+                        <motion.section variants={fadeInUp}>
+                            <RecommendedMembers />
+                        </motion.section>
+                    </motion.div>
+
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1 }}
+                        className="pt-4 flex justify-center"
+                    >
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleLogout}
+                            className="text-gray-500 hover:text-white"
+                        >
+                            <LogOut className="w-4 h-4 mr-2" />
+                            ログアウト
+                        </Button>
+                    </motion.div>
                 </div>
-            </nav>
-
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="px-4 py-6 sm:px-0">
-                    {/* Welcome Section */}
-                    <div className="bg-white rounded-lg shadow p-6 mb-6">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                            ようこそ、{profile?.name || user.email} さん
-                        </h2>
-                        <p className="text-gray-600">
-                            Goshinkai へようこそ。あなたのランク: {' '}
-                            <span className="font-semibold text-blue-600">
-                                {profile?.rankBadge || 'WHITE'} ({profile?.rankScore || 0}pt)
-                            </span>
-                        </p>
-                    </div>
-
-                    {/* Quick Links */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <button
-                            onClick={() => router.push(`/profile/${user.uid}`)}
-                            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer text-left"
-                        >
-                            <div className="flex items-center mb-4">
-                                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">マイプロフィール</h3>
-                            <p className="text-sm text-gray-600">プロフィールを確認・編集</p>
-                        </button>
-
-                        <button
-                            onClick={() => router.push('/events')}
-                            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer text-left"
-                        >
-                            <div className="flex items-center mb-4">
-                                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                                    <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">イベント</h3>
-                            <p className="text-sm text-gray-600">開催予定のイベント一覧</p>
-                        </button>
-
-                        <button
-                            onClick={() => router.push('/members')}
-                            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer text-left"
-                        >
-                            <div className="flex items-center mb-4">
-                                <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                                    <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">メンバー</h3>
-                            <p className="text-sm text-gray-600">他のメンバーを見る</p>
-                        </button>
-                        <button
-                            onClick={() => router.push('/messages')}
-                            className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer text-left"
-                        >
-                            <div className="flex items-center mb-4">
-                                <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
-                                    <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                                    </svg>
-                                </div>
-                            </div>
-                            <h3 className="text-lg font-semibold text-gray-900 mb-2">メッセージ</h3>
-                            <p className="text-sm text-gray-600">チャット履歴を確認</p>
-                        </button>
-                    </div>
-                </div>
-            </main>
+            </div>
         </div>
     );
 }
