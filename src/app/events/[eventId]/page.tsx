@@ -192,6 +192,20 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         }
     };
 
+    const handleAddToCalendar = () => {
+        if (!event) return;
+        const startDate = event.dateTime.toDate();
+        const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration assumption
+
+        const formatDateForCalendar = (date: Date) => {
+            return date.toISOString().replace(/-|:|\.\d+/g, '');
+        };
+
+        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatDateForCalendar(startDate)}/${formatDateForCalendar(endDate)}&location=${encodeURIComponent(event.location)}&details=${encodeURIComponent(event.description || '')}`;
+
+        window.open(googleCalUrl, '_blank');
+    };
+
     if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div></div>;
     if (!event) return <div className="text-center p-8 text-white">イベントが見つかりません</div>;
 

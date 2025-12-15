@@ -1,0 +1,30 @@
+
+> goshinkai_v1@0.1.0 build
+> next build
+
+ 笞 Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\zainc\.gemini\antigravity\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * C:\Users\zainc\.gemini\antigravity\scratch\goshinkai_v1\package-lock.json
+
+   笆ｲ Next.js 16.0.10 (Turbopack)
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ 笨・Compiled successfully in 3.2s
+   Running TypeScript ...
+Failed to compile.
+
+./src/app/events/[eventId]/page.tsx:220:70
+Type error: Cannot find name 'handleAddToCalendar'.
+
+  218 |                         </a>
+  219 |
+> 220 |                         <Button variant="outline" size="sm" onClick={handleAddToCalendar}>
+      |                                                                      ^
+  221 |                             <CalendarIcon className="w-4 h-4 mr-2" />
+  222 |                             繧ｫ繝ｬ繝ｳ繝繝ｼ縺ｫ霑ｽ蜉
+  223 |                         </Button>
+Next.js build worker exited with code: 1 and signal: null
