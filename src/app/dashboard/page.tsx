@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { useRouter } from 'next/navigation';
 import {
     Users, Calendar, MessageSquare, Star, TrendingUp,
-    Award, Target, Gift, ArrowLeft
+    Award, Target, Gift, ArrowLeft, User as UserIcon
 } from 'lucide-react';
 
 export default function UserDashboardPage() {
@@ -65,7 +65,7 @@ export default function UserDashboardPage() {
                 <div className="grid grid-cols-2 gap-4">
                     <Card className="border-accent/20 text-center hover:bg-white/5 transition-colors">
                         <Calendar className="w-8 h-8 text-green-400 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-white">{profile.eventsAttended || 0}</p>
+                        <p className="text-2xl font-bold text-white">{(profile as any).eventsAttended || 0}</p>
                         <p className="text-xs text-gray-400">参加イベント</p>
                     </Card>
                     <Card className="border-accent/20 text-center hover:bg-white/5 transition-colors">
@@ -75,12 +75,12 @@ export default function UserDashboardPage() {
                     </Card>
                     <Card className="border-accent/20 text-center hover:bg-white/5 transition-colors">
                         <Star className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-white">{profile.interestsReceived || 0}</p>
+                        <p className="text-2xl font-bold text-white">{(profile as any).interestsReceived || 0}</p>
                         <p className="text-xs text-gray-400">興味あり獲得数</p>
                     </Card>
                     <Card className="border-accent/20 text-center hover:bg-white/5 transition-colors">
                         <MessageSquare className="w-8 h-8 text-purple-400 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-white">{profile.messagesCount || 0}</p>
+                        <p className="text-2xl font-bold text-white">{(profile as any).messagesCount || 0}</p>
                         <p className="text-xs text-gray-400">メッセージ数</p>
                     </Card>
                 </div>
@@ -105,7 +105,7 @@ export default function UserDashboardPage() {
                             <span className="text-accent font-bold">+50pt</span>
                         </div>
                         <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-white/5">
-                            <span className="text-gray-300 flex items-center gap-2"><User className="w-4 h-4 text-gray-500" />プロフィール完成</span>
+                            <span className="text-gray-300 flex items-center gap-2"><UserIcon className="w-4 h-4 text-gray-500" />プロフィール完成</span>
                             <span className="text-accent font-bold">+30pt</span>
                         </div>
                         <div className="flex justify-between items-center p-3 bg-surface rounded-lg border border-white/5">
@@ -120,7 +120,4 @@ export default function UserDashboardPage() {
     );
 }
 
-// Helper component since 'User' was used in icon list but not imported or used
-function User(props: any) {
-    return <Users {...props} />;
-}
+

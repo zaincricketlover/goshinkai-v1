@@ -38,6 +38,12 @@ export interface UserProfile {
     referredBy?: string;      // 誰に紹介されたか
     referralCount?: number;    // 紹介した人数（デフォルト0）
     inviteCode?: string;      // 自分の招待コード
+
+    // Stats (Optional)
+    eventsAttended?: number;
+    interestsReceived?: number;
+    messagesCount?: number;
+
     createdAt: Timestamp;
 }
 
