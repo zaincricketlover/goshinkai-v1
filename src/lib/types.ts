@@ -44,6 +44,12 @@ export interface UserProfile {
     interestsReceived?: number;
     messagesCount?: number;
 
+    // Business Card
+    businessCardUrl?: string;
+    businessEmail?: string;
+    businessPhone?: string;
+    businessAddress?: string;
+
     createdAt: Timestamp;
 }
 

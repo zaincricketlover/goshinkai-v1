@@ -138,7 +138,7 @@ export default function MatchPage() {
                         <Card className="border-accent/20 p-6 shadow-2xl bg-surface-elevated/90 backdrop-blur-sm">
                             {/* アバター */}
                             <div className="text-center mb-4">
-                                <Avatar src={currentMatch.avatarUrl} size="xl" rank={currentMatch.rankBadge} className="mb-4 mx-auto" />
+                                <Avatar src={currentMatch.avatarUrl} alt={currentMatch.name || 'Member'} size="xl" rank={currentMatch.rankBadge} className="mb-4 mx-auto" />
                                 <h2 className="text-2xl font-bold text-white">{currentMatch.name}</h2>
                                 <p className="text-sm text-gray-400">{currentMatch.companyName}</p>
                                 <Badge rank={currentMatch.rankBadge} className="mt-2" />
