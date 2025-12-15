@@ -5,9 +5,12 @@ import React, { MouseEvent } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { QRCodeSVG } from "qrcode.react";
 import { RANK_BADGES } from "@/lib/constants";
+import { BusinessCardModal } from "./BusinessCardModal";
+import { useState } from "react";
 
 export const LuxuryCard = () => {
     const { profile } = useAuth();
+    const [showBusinessCard, setShowBusinessCard] = useState(false);
     const x = useMotionValue(0);
     const y = useMotionValue(0);
 
@@ -105,7 +108,13 @@ export const LuxuryCard = () => {
                         </div>
 
                         {/* QRコード */}
-                        <div className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-lg border border-accent/20 p-1.5 flex items-center justify-center">
+                        <div
+                            className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-lg border border-accent/20 p-1.5 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setShowBusinessCard(true);
+                            }}
+                        >
                             <QRCodeSVG
                                 value={`goshinkai://profile/${profile.userId}`}
                                 size={44}
@@ -120,6 +129,12 @@ export const LuxuryCard = () => {
                 {/* 金属質の枠線 */}
                 <div className="absolute inset-0 border border-accent/20 rounded-2xl z-30 pointer-events-none" />
             </motion.div>
+
+            <BusinessCardModal
+                isOpen={showBusinessCard}
+                onClose={() => setShowBusinessCard(false)}
+                profile={profile}
+            />
         </div>
     );
 };

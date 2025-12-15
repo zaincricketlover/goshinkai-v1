@@ -91,9 +91,10 @@ export const RegisterForm = () => {
                 rankBadge: 'WHITE',
                 rankScore: 0,
                 unlockedVenueIds: ['osaka'],
-                referredBy: referrerId,        // 紹介者を記録
-                referralCount: 0,              // 初期値
-                inviteCode: newUserInviteCode, // 自分の招待コード
+                // Avoid 'undefined' value for Firestore
+                referredBy: referrerId || null,
+                referralCount: 0,
+                inviteCode: newUserInviteCode,
                 createdAt: serverTimestamp() as Timestamp,
             };
 

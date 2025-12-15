@@ -90,6 +90,32 @@ export default function AdminUsersPage() {
         }
     };
 
+    const handleDeleteUser = async (userId: string, userName: string) => {
+        const confirmed = window.confirm(`${userName}さんを退会させますか？この操作は取り消せません。`);
+
+        if (!confirmed) return;
+
+        try {
+            // プロフィールを削除（または非アクティブ化）
+            // For now, we just mark as deleted or actually delete? 
+            // Request said: isActive: false, deletedAt: serverTimestamp()
+            // We need to import serverTimestamp
+            const { serverTimestamp } = await import('firebase/firestore');
+
+            await updateDoc(doc(db, 'profiles', userId), {
+                isActive: false,
+                deletedAt: serverTimestamp()
+            });
+
+            // Remove from local list
+            setUsers(users.filter(u => u.userId !== userId));
+            alert(`${userName}さんを退会処理しました`);
+        } catch (error) {
+            console.error(error);
+            alert('退会処理に失敗しました');
+        }
+    };
+
     if (authLoading || loading) {
         return (
             <div className="min-h-screen bg-primary flex items-center justify-center">
@@ -151,9 +177,9 @@ export default function AdminUsersPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${u.rankBadge === 'PLATINUM' ? 'bg-purple-900/50 text-purple-300' :
-                                                    u.rankBadge === 'DIAMOND' ? 'bg-blue-900/50 text-blue-300' :
-                                                        u.rankBadge === 'GOLD' ? 'bg-yellow-900/50 text-yellow-300' :
-                                                            'bg-surface-elevated text-gray-300'
+                                                u.rankBadge === 'DIAMOND' ? 'bg-blue-900/50 text-blue-300' :
+                                                    u.rankBadge === 'GOLD' ? 'bg-yellow-900/50 text-yellow-300' :
+                                                        'bg-surface-elevated text-gray-300'
                                                 }`}>
                                                 {u.rankBadge}
                                             </span>
@@ -190,6 +216,15 @@ export default function AdminUsersPage() {
                                                     {u.isAdmin ? '管理者解除' : '管理者にする'}
                                                 </Button>
                                             )}
+
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="w-full text-red-400 border-red-400/50 hover:bg-red-400/10"
+                                                onClick={() => handleDeleteUser(u.userId, u.name)}
+                                            >
+                                                退会
+                                            </Button>
                                         </td>
                                     </tr>
                                 ))}

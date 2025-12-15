@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'sonner';
 import { use } from 'react';
-import { Check, Star, X } from 'lucide-react';
+import { Check, Star, X, MapPin, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
 
 export default function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
     const resolvedParams = use(params);
@@ -82,10 +82,65 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         }
     }, [user, resolvedParams.eventId]);
 
+    const handleCancelRequest = async (participantDocId: string, joinedAt?: Timestamp) => {
+        if (!joinedAt) return; // Should not happen for 'going' status
+
+        const now = new Date();
+        const joinedDate = joinedAt.toDate();
+        const hoursSinceJoin = (now.getTime() - joinedDate.getTime()) / (1000 * 60 * 60);
+
+        if (hoursSinceJoin > 24) {
+            // Cancel Request Flow
+            try {
+                setActionLoading('not_going'); // Using 'not_going' as generic loading state
+                const participantRef = doc(db, 'events', resolvedParams.eventId, 'participants', participantDocId);
+
+                await updateDoc(participantRef, {
+                    status: 'cancel_requested',
+                    cancelRequestedAt: serverTimestamp()
+                });
+
+                // Notify Admin (optional structure, adjust as needed)
+                await addDoc(collection(db, 'notifications'), {
+                    type: 'cancel_request',
+                    eventId: resolvedParams.eventId,
+                    userId: user?.uid,
+                    message: `${profile?.name}様がイベントのキャンセルを申請しました`,
+                    createdAt: serverTimestamp(),
+                    isRead: false,
+                    targetUserId: 'admin'
+                });
+
+                setMyStatus('cancel_requested' as any); // Optimistic update
+                toast.success('キャンセル申請を送信しました (参加から24時間経過)');
+            } catch (error) {
+                console.error('Error requesting cancel:', error);
+                toast.error('キャンセル申請に失敗しました');
+            } finally {
+                setActionLoading(null);
+            }
+            return true; // Handled as request
+        }
+        return false; // Proceed with normal cancellation
+    };
+
     const handleStatusChange = async (newStatus: ParticipationStatus) => {
         if (!user || !profile) return;
-        setActionLoading(newStatus);
 
+        // Special Handling for Cancellation
+        if (newStatus === 'not_going' && myStatus === 'going' && myParticipantDocId) {
+            // Fetch current data to get joinedAt
+            const pDoc = await getDoc(doc(db, 'events', resolvedParams.eventId, 'participants', myParticipantDocId));
+            const pData = pDoc.data() as EventParticipant;
+
+            if (pData?.createdAt) { // Assuming createdAt is effectively joinedAt for first join
+                const isRequestHandled = await handleCancelRequest(myParticipantDocId, pData.createdAt);
+                if (isRequestHandled) return;
+            }
+        }
+
+        setActionLoading(newStatus);
+        // ... (rest of standard logic)
         try {
             const participantsRef = collection(db, 'events', resolvedParams.eventId, 'participants');
 
@@ -147,6 +202,27 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         <div className="min-h-screen bg-primary pb-32 px-4 py-6">
             <div className="max-w-3xl mx-auto space-y-8">
                 <EventDetail event={event} />
+
+                {/* Utilities: Map & Calendar */}
+                <div className="flex flex-col gap-4 bg-surface rounded-xl p-4 border border-white/5">
+                    <div className="flex items-center justify-between">
+                        <a
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.location)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-2 text-accent hover:underline text-sm"
+                        >
+                            <MapPin className="w-4 h-4" />
+                            {event.location}を地図で見る
+                            <ExternalLink className="w-3 h-3" />
+                        </a>
+
+                        <Button variant="outline" size="sm" onClick={handleAddToCalendar}>
+                            <CalendarIcon className="w-4 h-4 mr-2" />
+                            カレンダーに追加
+                        </Button>
+                    </div>
+                </div>
 
                 {myStatus === 'going' && isEventToday && (
                     <Card className="border-accent/50 bg-accent/5">

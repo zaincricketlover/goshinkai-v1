@@ -13,16 +13,42 @@ import { Button } from '@/components/ui/Button';
 import { LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { WelcomeModal } from '@/components/ui/WelcomeModal';
+import { SetInviteCodeModal } from '@/components/ui/SetInviteCodeModal';
 
 export default function HomePage() {
     const { profile, loading } = useAuth();
     const router = useRouter();
     const [showWelcome, setShowWelcome] = useState(false);
+    const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
 
     useEffect(() => {
-        // 初回表示チェック（localStorageで管理）
+        if (!profile) return;
+
+        // Check if user has default invite code (contains '-') and hasn't skipped setup
+        // But the request says "初回登録完了後に...". Let's just check if it matches the default pattern or some flag.
+        // Default pattern in RegisterForm was `${code}-${userId.slice(0, 4).toUpperCase()}`
+        // Simple check: if inviteCode is present. 
+        // Request: "自己設定機能" -> "初回登録完了後に招待コード設定画面を表示"
+        // Let's assume we show it if they haven't set a custom one? 
+        // Or maybe strictly "After registration". 
+        // Let's check a localStorage flag or if the code looks like a system generated one.
+        // System generated has a hyphen. Custom ones usually don't?
+        // Let's just use localStorage for now to not annoy existing users too much, 
+        // OR better, checking if propert 'inviteCode' exists.
+        // Actually, RegisterForm generates a code.
+        // Let's check `localStorage.getItem('goshinkai_invite_setup_seen')`.
+
+        const hasSeenInviteSetup = localStorage.getItem('goshinkai_invite_setup_seen');
+        if (!hasSeenInviteSetup && profile.inviteCode && profile.inviteCode.includes('-')) {
+            // Assuming hyphen indicates system generated
+            // But let's verify if `includes('-')` is safe.
+            // Yes, `generateInviteCode` produces `${code}-${userId...}`.
+            setShowInviteCodeModal(true);
+        }
+
+        // Welcome Modal Logic
         const hasSeenWelcome = localStorage.getItem('goshinkai_welcome_seen');
-        if (!hasSeenWelcome && profile) {
+        if (!hasSeenWelcome) {
             setShowWelcome(true);
         }
     }, [profile]);
@@ -80,6 +106,23 @@ export default function HomePage() {
                     name={profile.name}
                     rankBadge={profile.rankBadge}
                 />
+            {profile && (
+                <>
+                    <WelcomeModal
+                        isOpen={showWelcome}
+                        onClose={handleCloseWelcome}
+                        name={profile.name}
+                        rankBadge={profile.rankBadge}
+                    />
+                    <SetInviteCodeModal
+                        isOpen={showInviteCodeModal}
+                        onClose={() => {
+                            setShowInviteCodeModal(false);
+                            localStorage.setItem('goshinkai_invite_setup_seen', 'true');
+                        }}
+                        userId={profile.userId}
+                    />
+                </>
             )}
             {/* Header / Top Section */}
             <div className="bg-primary pt-8 pb-6 px-4">

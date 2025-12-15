@@ -59,14 +59,14 @@ export default function LandingPage() {
         >
           <div className="flex p-1 mb-6 bg-black/20 rounded-xl">
             <button
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${isLogin ? 'bg-surface-elevated text-white shadow-lg' : 'text-gray-400 hover:text-white'
+              className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all duration-300 ${isLogin ? 'bg-surface-elevated text-white shadow-lg' : 'text-gray-400 hover:text-white'
                 }`}
               onClick={() => setIsLogin(true)}
             >
               ログイン
             </button>
             <button
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-300 ${!isLogin ? 'bg-surface-elevated text-white shadow-lg' : 'text-gray-400 hover:text-white'
+              className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all duration-300 ${!isLogin ? 'bg-surface-elevated text-white shadow-lg' : 'text-gray-400 hover:text-white'
                 }`}
               onClick={() => setIsLogin(false)}
             >

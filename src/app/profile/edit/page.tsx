@@ -31,6 +31,12 @@ export default function EditProfilePage() {
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreview, setAvatarPreview] = useState<string | null>(profile?.avatarUrl || null);
 
+    // Business Card Fields
+    const [businessCardFile, setBusinessCardFile] = useState<File | null>(null);
+    const [businessEmail, setBusinessEmail] = useState(profile?.businessEmail || '');
+    const [businessPhone, setBusinessPhone] = useState(profile?.businessPhone || '');
+    const [businessAddress, setBusinessAddress] = useState(profile?.businessAddress || '');
+
     // Update state when profile loads
     React.useEffect(() => {
         if (profile) {
@@ -43,13 +49,16 @@ export default function EditProfilePage() {
             setGiveTags(profile.giveTags?.join(', ') || '');
             setIndustries(profile.industries?.join(', ') || '');
             setAvatarPreview(profile.avatarUrl || null);
+            setBusinessEmail(profile.businessEmail || '');
+            setBusinessPhone(profile.businessPhone || '');
+            setBusinessAddress(profile.businessAddress || '');
         }
     }, [profile]);
 
     if (authLoading) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div></div>;
     if (!profile) { router.push('/'); return null; }
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             if (file.size > 5 * 1024 * 1024) { toast.error('画像サイズは5MB以下にしてください'); return; }
@@ -57,6 +66,15 @@ export default function EditProfilePage() {
             const reader = new FileReader();
             reader.onloadend = () => setAvatarPreview(reader.result as string);
             reader.readAsDataURL(file);
+        }
+    };
+
+    const handleBusinessCardUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            if (file.size > 5 * 1024 * 1024) { toast.error('画像サイズは5MB以下にしてください'); return; }
+            setBusinessCardFile(file);
+            toast.success('名刺画像を選択しました');
         }
     };
 
@@ -71,10 +89,23 @@ export default function EditProfilePage() {
                 avatarUrl = await getDownloadURL(storageRef);
             }
 
+            if (businessCardFile) {
+                const storageRef = ref(storage, `businessCards/${profile.userId}`);
+                await uploadBytes(storageRef, businessCardFile);
+                const businessCardUrl = await getDownloadURL(storageRef);
+                // We need to add this to the update object
+                // But TypeScript might complain if 'businessCardUrl' isn't in scope or 'updateDoc' usage is rigid.
+                // Let's create a robust update object.
+                await updateDoc(doc(db, 'profiles', profile.userId), {
+                    businessCardUrl
+                });
+            }
+
             const splitTags = (str: string) => str.split(',').map(s => s.trim()).filter(s => s);
 
             await updateDoc(doc(db, 'profiles', profile.userId), {
                 name, companyName, title, bio, catchCopy, avatarUrl,
+                businessEmail, businessPhone, businessAddress,
                 wantTags: splitTags(wantTags),
                 giveTags: splitTags(giveTags),
                 industries: splitTags(industries),
@@ -130,6 +161,25 @@ export default function EditProfilePage() {
                                     placeholder="経歴や事業内容など"
                                 />
                             </div>
+                        </div>
+                    </Card>
+
+                    <Card title="名刺情報">
+                        <div className="mb-6 pb-6 border-b border-white/10">
+                            <label className="block text-sm font-medium text-gray-300 mb-2">名刺画像（任意）</label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleBusinessCardUpload}
+                                className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent hover:file:bg-accent/20"
+                            />
+                        </div>
+
+                        <p className="text-xs text-gray-500 mb-4">または、以下を入力するとデジタル名刺が生成されます</p>
+                        <div className="space-y-4">
+                            <Input label="ビジネスメール" value={businessEmail} onChange={(e) => setBusinessEmail(e.target.value)} placeholder="contact@example.com" />
+                            <Input label="電話番号" value={businessPhone} onChange={(e) => setBusinessPhone(e.target.value)} placeholder="03-1234-5678" />
+                            <Input label="住所" value={businessAddress} onChange={(e) => setBusinessAddress(e.target.value)} placeholder="東京都..." />
                         </div>
                     </Card>
 

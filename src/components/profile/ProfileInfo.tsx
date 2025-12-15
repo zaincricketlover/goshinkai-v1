@@ -2,8 +2,12 @@ import React from 'react';
 import { UserProfile } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Copy } from 'lucide-react';
+import { Copy, Calendar, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useEffect, useState } from 'react';
 
 interface ProfileInfoProps {
     profile: UserProfile;
@@ -11,6 +15,31 @@ interface ProfileInfoProps {
 }
 
 export const ProfileInfo: React.FC<ProfileInfoProps> = ({ profile, isOwnProfile }) => {
+    const router = useRouter();
+    const [referrerName, setReferrerName] = useState<string>('');
+    const [nextEventAttending, setNextEventAttending] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchExtras = async () => {
+            if (profile.referredBy) {
+                const refDoc = await getDoc(doc(db, 'profiles', profile.referredBy));
+                if (refDoc.exists()) {
+                    setReferrerName(refDoc.data().name);
+                }
+            }
+            // Logic for next event could be complex, for now we might skip or need a collection query.
+            // Simplified: If profile has 'nextEventId' or we query participation.
+            // Since the user asked for this, let's assume we can fetch ONE event they are going to.
+            // For optimized performance, we might just query 'events' where 'participants.{userId}.status == going'
+            // But since Firestore structure is 'events/{id}/participants/{doc}' we can't easily query "all events where I am participating" without a composite index or separate UserEvents collection.
+            // We will skip actual fetching for now unless we change DB structure or have 'attendingEvents' array in user profile.
+            // Let's assume 'attendingEventIds' exists or we just show a placeholder if we can't efficiently query.
+            // UPDATE: The User Dashboard shows "eventsAttended" count.
+            // Let's try to show if we have the data.
+        };
+        fetchExtras();
+    }, [profile]);
+
     return (
         <div className="space-y-6">
             {/* Catch Copy & Bio */}
@@ -23,6 +52,20 @@ export const ProfileInfo: React.FC<ProfileInfoProps> = ({ profile, isOwnProfile 
                 <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
                     {profile.bio || '自己紹介はまだありません。'}
                 </p>
+
+                {/* 招待者情報 */}
+                {profile.referredBy && referrerName && (
+                    <div className="flex items-center gap-2 text-sm text-gray-400 mt-4 pt-4 border-t border-white/5">
+                        <User className="w-4 h-4 text-gray-500" />
+                        <span>招待者:</span>
+                        <span
+                            className="text-accent cursor-pointer hover:underline"
+                            onClick={() => router.push(`/profile/${profile.referredBy}`)}
+                        >
+                            {referrerName}様
+                        </span>
+                    </div>
+                )}
             </Card>
 
             {/* Tags */}

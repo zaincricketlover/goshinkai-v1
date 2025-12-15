@@ -99,8 +99,14 @@ export default function AdminDashboard() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
+                            onClick={() => {
+                                if (stat.label === '総会員数') router.push('/admin/users');
+                                if (stat.label === '総イベント数') router.push('/admin/events');
+                                if (stat.label === '招待使用数') router.push('/admin/invites');
+                            }}
+                            className="cursor-pointer"
                         >
-                            <Card className="text-center">
+                            <Card className="text-center hover:bg-white/5 transition-colors">
                                 <stat.icon className={`w-8 h-8 mx-auto mb-2 ${stat.color}`} />
                                 <p className="text-3xl font-bold text-white">{stat.value}</p>
                                 <p className="text-sm text-gray-400">{stat.label}</p>

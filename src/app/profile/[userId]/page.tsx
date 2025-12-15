@@ -61,10 +61,23 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
 
         try {
             if (isInterested) {
-                // Already interested - do nothing (or implement remove interest)
-                toast.info('すでに興味ありを送信しています');
+                // Remove interest (Toggle Off)
+                const interestsRef = collection(db, 'interests');
+                const q = query(
+                    interestsRef,
+                    where('fromUserId', '==', user.uid),
+                    where('toUserId', '==', profile.userId)
+                );
+                const snapshot = await getDocs(q);
+
+                // There might be duplicates, delete all matching
+                const deletePromises = snapshot.docs.map(doc => import('firebase/firestore').then(({ deleteDoc }) => deleteDoc(doc.ref)));
+                await Promise.all(deletePromises);
+
+                setIsInterested(false);
+                toast.info('興味ありを取り消しました');
             } else {
-                // Add interest
+                // Add interest (Toggle On)
                 await addDoc(collection(db, 'interests'), {
                     fromUserId: user.uid,
                     toUserId: profile.userId,
@@ -85,7 +98,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                 }
             }
         } catch (error) {
-            console.error('Error expressing interest:', error);
+            console.error('Error toggling interest:', error);
             toast.error('エラーが発生しました');
         } finally {
             setInterestLoading(false);
@@ -168,15 +181,14 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                         <>
                             <Button
                                 variant={isInterested ? "secondary" : "secondary"}
-                                className={`shadow-xl ${isInterested ? 'bg-pink-500/20 border-pink-500/50 text-pink-400' : ''}`}
+                                className={`shadow-xl ${isInterested ? 'bg-pink-500/10 border-pink-500/30 text-pink-400 hover:bg-pink-500/20' : ''}`}
                                 onClick={handleInterest}
                                 isLoading={interestLoading}
-                                disabled={isInterested}
                             >
                                 {isInterested ? (
                                     <>
                                         <Check className="w-4 h-4 mr-2" />
-                                        興味あり済み
+                                        興味あり（解除）
                                     </>
                                 ) : (
                                     <>
