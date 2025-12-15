@@ -99,13 +99,7 @@ export default function HomePage() {
 
     return (
         <div className="min-h-screen bg-primary text-white pb-24 overflow-x-hidden">
-            {profile && (
-                <WelcomeModal
-                    isOpen={showWelcome}
-                    onClose={handleCloseWelcome}
-                    name={profile.name}
-                    rankBadge={profile.rankBadge}
-                />
+
             {profile && (
                 <>
                     <WelcomeModal
