@@ -24,26 +24,13 @@ export default function HomePage() {
     useEffect(() => {
         if (!profile) return;
 
-        // Check if user has default invite code (contains '-') and hasn't skipped setup
-        // But the request says "初回登録完了後に...". Let's just check if it matches the default pattern or some flag.
-        // Default pattern in RegisterForm was `${code}-${userId.slice(0, 4).toUpperCase()}`
-        // Simple check: if inviteCode is present. 
-        // Request: "自己設定機能" -> "初回登録完了後に招待コード設定画面を表示"
-        // Let's assume we show it if they haven't set a custom one? 
-        // Or maybe strictly "After registration". 
-        // Let's check a localStorage flag or if the code looks like a system generated one.
-        // System generated has a hyphen. Custom ones usually don't?
-        // Let's just use localStorage for now to not annoy existing users too much, 
-        // OR better, checking if propert 'inviteCode' exists.
-        // Actually, RegisterForm generates a code.
-        // Let's check `localStorage.getItem('goshinkai_invite_setup_seen')`.
-
-        const hasSeenInviteSetup = localStorage.getItem('goshinkai_invite_setup_seen');
-        if (!hasSeenInviteSetup && profile.inviteCode && profile.inviteCode.includes('-')) {
-            // Assuming hyphen indicates system generated
-            // But let's verify if `includes('-')` is safe.
-            // Yes, `generateInviteCode` produces `${code}-${userId...}`.
-            setShowInviteCodeModal(true);
+        // 招待コードが未設定の場合にモーダルを表示
+        if (profile && !profile.inviteCode) {
+            // WelcomeModalが閉じた後に表示
+            const timer = setTimeout(() => {
+                setShowInviteCodeModal(true);
+            }, 2000); // WelcomeModal後に表示
+            return () => clearTimeout(timer);
         }
 
         // Welcome Modal Logic
@@ -110,10 +97,7 @@ export default function HomePage() {
                     />
                     <SetInviteCodeModal
                         isOpen={showInviteCodeModal}
-                        onClose={() => {
-                            setShowInviteCodeModal(false);
-                            localStorage.setItem('goshinkai_invite_setup_seen', 'true');
-                        }}
+                        onClose={() => setShowInviteCodeModal(false)}
                         userId={profile.userId}
                     />
                 </>

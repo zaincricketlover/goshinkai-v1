@@ -10,10 +10,12 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileInfo } from '@/components/profile/ProfileInfo';
 import { ProfileLocked } from '@/components/profile/ProfileLocked';
 import { Button } from '@/components/ui/Button';
-import { MessageCircle, Heart, Edit, Check } from 'lucide-react';
+import { MessageCircle, Heart, Edit, Check, LogOut } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
 import { toast } from 'sonner';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function ProfilePage({ params }: { params: Promise<{ userId: string }> }) {
     const resolvedParams = use(params);
@@ -158,6 +160,17 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await signOut(auth);
+            router.push('/');
+            toast.success('ログアウトしました');
+        } catch (error) {
+            console.error('Logout error:', error);
+            toast.error('ログアウトに失敗しました');
+        }
+    };
+
     if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div></div>;
     if (!profile) return <div className="text-center p-8 text-white">ユーザーが見つかりません</div>;
 
@@ -179,14 +192,24 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
             <div className="fixed bottom-20 left-0 right-0 px-4 flex justify-center gap-4 z-40 pointer-events-none">
                 <div className="flex gap-3 pointer-events-auto">
                     {isOwnProfile ? (
-                        <Button
-                            variant="secondary"
-                            className="shadow-xl"
-                            onClick={() => router.push('/profile/edit')}
-                        >
-                            <Edit className="w-4 h-4 mr-2" />
-                            プロフィール編集
-                        </Button>
+                        <>
+                            <Button
+                                variant="secondary"
+                                className="shadow-xl"
+                                onClick={() => router.push('/profile/edit')}
+                            >
+                                <Edit className="w-4 h-4 mr-2" />
+                                プロフィール編集
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="shadow-xl text-red-400 border-red-400/50 bg-surface-elevated"
+                                onClick={handleLogout}
+                            >
+                                <LogOut className="w-4 h-4 mr-2" />
+                                ログアウト
+                            </Button>
+                        </>
                     ) : (
                         <>
                             <Button
@@ -222,7 +245,7 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
 

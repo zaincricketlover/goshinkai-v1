@@ -198,7 +198,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration assumption
 
         const formatForGoogle = (date: Date) => {
-            return date.toISOString().replace(/-|:|\.\d+/g, '');
+            return date.toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z';
         };
 
         const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatForGoogle(startDate)}/${formatForGoogle(endDate)}&location=${encodeURIComponent(event.location)}&details=${encodeURIComponent(event.description || '')}`;

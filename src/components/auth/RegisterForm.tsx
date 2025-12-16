@@ -75,7 +75,14 @@ export const RegisterForm = () => {
             const newUserInviteCode = generateInviteCode(user.uid);
 
             // 4. ユーザープロフィール作成
-            const userProfile: Record<string, any> = {
+            // undefinedのフィールドを除外するヘルパー関数
+            const removeUndefined = (obj: Record<string, any>) => {
+                return Object.fromEntries(
+                    Object.entries(obj).filter(([_, v]) => v !== undefined)
+                );
+            };
+
+            const userProfile = removeUndefined({
                 userId: user.uid,
                 name: name,
                 kana: '',
@@ -92,14 +99,10 @@ export const RegisterForm = () => {
                 rankScore: 0,
                 unlockedVenueIds: ['osaka'],
                 referralCount: 0,
-                inviteCode: newUserInviteCode,
+                inviteCode: null, // 初期値はnull（ホーム画面で設定）
                 createdAt: serverTimestamp(),
-            };
-
-            // referredBy は値がある場合のみ追加（undefined を防ぐ）
-            if (referrerId) {
-                userProfile.referredBy = referrerId;
-            }
+                referredBy: referrerId || null,
+            });
 
             await setDoc(doc(db, 'profiles', user.uid), userProfile);
 
