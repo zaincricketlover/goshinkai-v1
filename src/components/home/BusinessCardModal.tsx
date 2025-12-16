@@ -33,7 +33,7 @@ export const BusinessCardModal: React.FC<BusinessCardModalProps> = ({ isOpen, on
                         {/* 閉じるボタン */}
                         <button
                             onClick={onClose}
-                            className="absolute top-4 right-4 text-white/50 hover:text-white z-10"
+                            className="absolute top-4 right-4 text-white/70 hover:text-white bg-black/50 rounded-full p-2 z-50"
                         >
                             <X className="w-6 h-6" />
                         </button>

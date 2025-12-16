@@ -197,11 +197,11 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         const startDate = event.dateTime.toDate();
         const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration assumption
 
-        const formatDateForCalendar = (date: Date) => {
+        const formatForGoogle = (date: Date) => {
             return date.toISOString().replace(/-|:|\.\d+/g, '');
         };
 
-        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatDateForCalendar(startDate)}/${formatDateForCalendar(endDate)}&location=${encodeURIComponent(event.location)}&details=${encodeURIComponent(event.description || '')}`;
+        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatForGoogle(startDate)}/${formatForGoogle(endDate)}&location=${encodeURIComponent(event.location)}&details=${encodeURIComponent(event.description || '')}`;
 
         window.open(googleCalUrl, '_blank');
     };
@@ -278,14 +278,23 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                             興味あり
                         </Button>
                         <Button
-                            className={`flex-1 ${myStatus === 'not_going' ? 'bg-red-600 hover:bg-red-700 text-white' : ''}`}
+                            className={`flex-1 ${myStatus === 'not_going' ? 'bg-red-600 hover:bg-red-700 text-white' : ''} ${myStatus === 'going' ? 'text-red-400 border-red-400/50' : ''}`}
                             variant={myStatus === 'not_going' ? 'primary' : 'outline'}
                             onClick={() => handleStatusChange('not_going')}
                             isLoading={actionLoading === 'not_going'}
                             disabled={myStatus === 'not_going'}
                         >
-                            <X className="w-4 h-4 mr-1" />
-                            不参加
+                            {myStatus === 'going' ? (
+                                <>
+                                    <X className="w-4 h-4 mr-1" />
+                                    キャンセル申請
+                                </>
+                            ) : (
+                                <>
+                                    <X className="w-4 h-4 mr-1" />
+                                    不参加
+                                </>
+                            )}
                         </Button>
                     </div>
                 </div>

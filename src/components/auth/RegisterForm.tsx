@@ -75,7 +75,7 @@ export const RegisterForm = () => {
             const newUserInviteCode = generateInviteCode(user.uid);
 
             // 4. ユーザープロフィール作成
-            const userProfile: UserProfile = {
+            const userProfile: Record<string, any> = {
                 userId: user.uid,
                 name: name,
                 kana: '',
@@ -91,12 +91,15 @@ export const RegisterForm = () => {
                 rankBadge: 'WHITE',
                 rankScore: 0,
                 unlockedVenueIds: ['osaka'],
-                // Avoid 'undefined' value for Firestore
-                referredBy: referrerId || null,
                 referralCount: 0,
                 inviteCode: newUserInviteCode,
-                createdAt: serverTimestamp() as Timestamp,
+                createdAt: serverTimestamp(),
             };
+
+            // referredBy は値がある場合のみ追加（undefined を防ぐ）
+            if (referrerId) {
+                userProfile.referredBy = referrerId;
+            }
 
             await setDoc(doc(db, 'profiles', user.uid), userProfile);
 

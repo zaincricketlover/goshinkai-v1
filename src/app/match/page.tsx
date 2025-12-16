@@ -50,16 +50,17 @@ export default function MatchPage() {
 
     useEffect(() => {
         const fetchRecommendations = async () => {
-            if (!user || !profile) return;
+            if (!profile) return;
             try {
-                // Fetch other users (limit 20 for now)
-                const q = query(collection(db, 'profiles'), limit(20)); // In real app, use better query
+                // Fetch ALL profiles to ensure we find matches
+                const q = query(collection(db, 'profiles'));
                 const snap = await getDocs(q);
                 const candidates: any[] = [];
 
                 snap.forEach(d => {
                     const data = d.data() as UserProfile;
-                    if (data.userId !== user.uid) {
+                    // Exclude self and ensure valid data
+                    if (data.userId !== profile.userId && data.name) {
                         const score = calculateMatchScore(profile, data);
                         candidates.push({ ...data, matchResult: { score } });
                     }
@@ -67,7 +68,9 @@ export default function MatchPage() {
 
                 // Sort by score
                 candidates.sort((a, b) => b.matchResult.score - a.matchResult.score);
-                setRecommendedUsers(candidates);
+
+                // Limit strictly to top 20 AFTER sorting
+                setRecommendedUsers(candidates.slice(0, 20));
             } catch (error) {
                 console.error(error);
             } finally {
@@ -75,7 +78,7 @@ export default function MatchPage() {
             }
         };
         fetchRecommendations();
-    }, [user, profile]);
+    }, [profile]);
 
     const handleSendInterest = async () => {
         const currentMatch = recommendedUsers[currentIndex];

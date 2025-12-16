@@ -24,7 +24,6 @@ export const SetInviteCodeModal: React.FC<SetInviteCodeModalProps> = ({ isOpen, 
             return;
         }
 
-        // 英数字のみ許可
         if (!/^[a-zA-Z0-9]+$/.test(inviteCode)) {
             toast.error('英数字のみ使用できます');
             return;
@@ -33,9 +32,10 @@ export const SetInviteCodeModal: React.FC<SetInviteCodeModalProps> = ({ isOpen, 
         setLoading(true);
         try {
             // 重複チェック
+            // Check profiles collection as requested
             const existingQuery = query(
-                collection(db, 'invites'),
-                where('code', '==', inviteCode.toUpperCase())
+                collection(db, 'profiles'),
+                where('inviteCode', '==', inviteCode.toUpperCase())
             );
             const existing = await getDocs(existingQuery);
 
@@ -50,10 +50,10 @@ export const SetInviteCodeModal: React.FC<SetInviteCodeModalProps> = ({ isOpen, 
                 inviteCode: inviteCode.toUpperCase()
             });
 
-            toast.success('招待コードを設定しました（変更不可）');
-            onClose();
+            toast.success('招待コードを設定しました');
+            onClose(); // モーダルを閉じる
         } catch (error) {
-            console.error(error);
+            console.error('Error setting invite code:', error);
             toast.error('設定に失敗しました');
         } finally {
             setLoading(false);

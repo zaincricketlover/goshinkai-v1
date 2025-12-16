@@ -55,6 +55,8 @@ export default function AdminEventsPage() {
 
     const handleCreateEvent = async (e: React.FormEvent) => {
         e.preventDefault();
+        e.stopPropagation();
+
         if (!confirm('イベントを作成しますか？')) return;
         setCreating(true);
 
@@ -170,7 +172,7 @@ export default function AdminEventsPage() {
                                     全拠点参加可能にする
                                 </label>
                             </div>
-                            <Button type="submit" isLoading={creating} variant="gold" className="w-full">
+                            <Button type="button" onClick={handleCreateEvent} isLoading={creating} variant="gold" className="w-full">
                                 作成する
                             </Button>
                         </form>

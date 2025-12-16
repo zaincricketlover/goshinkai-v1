@@ -25,35 +25,45 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
     const [interestLoading, setInterestLoading] = useState(false);
     const [messageLoading, setMessageLoading] = useState(false);
 
-    useEffect(() => {
-        const fetchProfile = async () => {
-            try {
-                const docRef = doc(db, 'profiles', resolvedParams.userId);
-                const docSnap = await getDoc(docRef);
-                if (docSnap.exists()) {
-                    setProfile(docSnap.data() as UserProfile);
-                }
+    const fetchProfile = async () => {
+        try {
+            const docRef = doc(db, 'profiles', resolvedParams.userId);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                setProfile(docSnap.data() as UserProfile);
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-                // Check if current user has already expressed interest
-                if (user) {
-                    const interestsRef = collection(db, 'interests');
-                    const q = query(
-                        interestsRef,
-                        where('fromUserId', '==', user.uid),
-                        where('toUserId', '==', resolvedParams.userId)
-                    );
-                    const interestSnap = await getDocs(q);
-                    setIsInterested(!interestSnap.empty);
-                }
-            } catch (error) {
-                console.error('Error fetching profile:', error);
-            } finally {
-                setLoading(false);
+    useEffect(() => {
+        fetchProfile();
+    }, [resolvedParams.userId]);
+
+    // Separate effect for checking interest status to ensure persistence
+    useEffect(() => {
+        const checkInterestStatus = async () => {
+            if (!user || !resolvedParams.userId) return;
+
+            try {
+                const interestsRef = collection(db, 'interests');
+                const q = query(
+                    interestsRef,
+                    where('fromUserId', '==', user.uid),
+                    where('toUserId', '==', resolvedParams.userId)
+                );
+                const interestSnap = await getDocs(q);
+                setIsInterested(!interestSnap.empty);
+            } catch (err) {
+                console.error('Error checking interest:', err);
             }
         };
 
-        fetchProfile();
-    }, [resolvedParams.userId, user]);
+        checkInterestStatus();
+    }, [user, resolvedParams.userId]);
 
     const handleInterest = async () => {
         if (!user || !profile) return;
