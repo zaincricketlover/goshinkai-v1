@@ -10,16 +10,83 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { LogOut } from 'lucide-react';
+import { LogOut, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { WelcomeModal } from '@/components/ui/WelcomeModal';
 import { SetInviteCodeModal } from '@/components/ui/SetInviteCodeModal';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { Card } from '@/components/ui/Card';
+import { Avatar } from '@/components/ui/Avatar';
 
 export default function HomePage() {
     const { profile, loading } = useAuth();
     const router = useRouter();
     const [showWelcome, setShowWelcome] = useState(false);
     const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
+    const [actionItems, setActionItems] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchActionItems = async () => {
+            if (!profile?.userId) return;
+
+            try {
+                const connectionsRef = collection(db, 'connections');
+                const q = query(
+                    connectionsRef,
+                    where('ownerUserId', '==', profile.userId),
+                    where('status', '==', 'active')
+                );
+
+                const snapshot = await getDocs(q);
+                const items: any[] = [];
+                const now = new Date();
+
+                for (const docSnap of snapshot.docs) {
+                    const data = docSnap.data();
+
+                    // フォローアップ日が今日以前
+                    if (data.followUpDate) {
+                        const followUpDate = data.followUpDate.toDate();
+                        if (followUpDate <= now) {
+                            const profileSnap = await getDoc(doc(db, 'profiles', data.connectedUserId));
+                            if (profileSnap.exists()) {
+                                items.push({
+                                    type: 'followUp',
+                                    connectionId: docSnap.id,
+                                    profile: profileSnap.data(),
+                                    date: followUpDate,
+                                });
+                            }
+                        }
+                    }
+
+                    // 30日以上連絡していない
+                    if (data.lastContactedAt) {
+                        const lastContact = data.lastContactedAt.toDate();
+                        const daysSince = Math.floor((now.getTime() - lastContact.getTime()) / (1000 * 60 * 60 * 24));
+                        if (daysSince >= 30) {
+                            const profileSnap = await getDoc(doc(db, 'profiles', data.connectedUserId));
+                            if (profileSnap.exists()) {
+                                items.push({
+                                    type: 'noContact',
+                                    connectionId: docSnap.id,
+                                    profile: profileSnap.data(),
+                                    daysSince,
+                                });
+                            }
+                        }
+                    }
+                }
+
+                setActionItems(items.slice(0, 5)); // 最大5件
+            } catch (error) {
+                console.error('Error fetching action items:', error);
+            }
+        };
+
+        fetchActionItems();
+    }, [profile?.userId]);
 
     useEffect(() => {
         if (!profile) return;
@@ -122,6 +189,48 @@ export default function HomePage() {
                         <motion.section variants={fadeInUp}>
                             <ActionCards />
                         </motion.section>
+
+                        {/* 今日のアクション */}
+                        {actionItems.length > 0 && (
+                            <motion.section variants={fadeInUp}>
+                                <Card className="border-accent/20 mb-6 bg-surface/50 backdrop-blur-sm">
+                                    <h3 className="text-sm font-bold text-accent mb-3 flex items-center gap-2">
+                                        <Bell className="w-4 h-4" />
+                                        今日のアクション
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {actionItems.map((item, index) => (
+                                            <div
+                                                key={index}
+                                                className="flex items-center gap-3 p-2 bg-surface rounded-lg cursor-pointer hover:bg-surface-elevated transition-colors border border-white/5"
+                                                onClick={() => router.push(`/connections/${item.connectionId}`)}
+                                            >
+                                                <Avatar
+                                                    src={item.profile.avatarUrl}
+                                                    alt={item.profile.name || ''}
+                                                    size="sm"
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white text-sm font-medium truncate">{item.profile.name}</p>
+                                                    <p className="text-xs text-gray-500">
+                                                        {item.type === 'followUp'
+                                                            ? 'フォローアップ予定日です'
+                                                            : `${item.daysSince}日間連絡していません`
+                                                        }
+                                                    </p>
+                                                </div>
+                                                <Button variant="outline" size="sm" onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(`/messages?userId=${item.profile.userId}`);
+                                                }}>
+                                                    連絡
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            </motion.section>
+                        )}
 
                         <motion.section variants={fadeInUp}>
                             <RecommendedMembers />

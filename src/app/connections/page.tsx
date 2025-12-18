@@ -159,8 +159,8 @@ export default function ConnectionsPage() {
                         <button
                             onClick={() => setFilterTag(null)}
                             className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${filterTag === null
-                                    ? 'bg-accent text-black'
-                                    : 'bg-surface-elevated text-gray-400 hover:text-white'
+                                ? 'bg-accent text-black'
+                                : 'bg-surface-elevated text-gray-400 hover:text-white'
                                 }`}
                         >
                             すべて
@@ -170,8 +170,8 @@ export default function ConnectionsPage() {
                                 key={tag}
                                 onClick={() => setFilterTag(tag)}
                                 className={`px-3 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${filterTag === tag
-                                        ? 'bg-accent text-black'
-                                        : 'bg-surface-elevated text-gray-400 hover:text-white'
+                                    ? 'bg-accent text-black'
+                                    : 'bg-surface-elevated text-gray-400 hover:text-white'
                                     }`}
                             >
                                 {tag}
@@ -205,7 +205,7 @@ export default function ConnectionsPage() {
                         <Card
                             key={connection.id}
                             className="border-white/5 hover:border-accent/30 transition-all cursor-pointer"
-                            onClick={() => router.push(`/profile/${profile.userId}`)}
+                            onClick={() => router.push(`/connections/${connection.id}`)}
                         >
                             <div className="flex items-start gap-4">
                                 <Avatar
