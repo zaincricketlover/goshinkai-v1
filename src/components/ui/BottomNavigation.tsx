@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, Search, Calendar, MessageCircle, Heart, User, Settings } from 'lucide-react';
+import { Home, Search, Calendar, MessageCircle, Heart, User, Settings, Users } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { isAdmin } from '@/lib/permissions';
@@ -24,7 +24,7 @@ export default function BottomNavigation() {
     const navItems = [
         { icon: Home, label: 'ホーム', path: '/home' },
         { icon: Search, label: 'メンバー', path: '/members' },
-        { icon: Heart, label: 'マッチ', path: '/matches' },
+        { icon: Users, label: '人脈', path: '/connections' },
         { icon: MessageCircle, label: 'トーク', path: '/messages', badge: unreadCount },
         { icon: User, label: 'マイページ', path: `/profile/${user.uid}` },
     ];

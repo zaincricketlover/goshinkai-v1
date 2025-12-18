@@ -1,144 +1,235 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // ============================================
+    // ヘルパー関数
+    // ============================================
 
-    // --- Helper Functions ---
-
+    // 認証済みかチェック
     function isAuthenticated() {
       return request.auth != null;
     }
-    
+
+    // 自分自身かチェック
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
 
-    function getProfile(userId) {
-      return get(/databases/$(database)/documents/profiles/$(userId)).data;
-    }
-
+    // 管理者かチェック
     function isAdmin() {
-      return getProfile(request.auth.uid).isAdmin == true;
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.isAdmin == true;
     }
 
-    // Check if user has Gold rank or higher
-    function isGoldOrHigher(profile) {
-      return profile.rankScore >= 100; // Assuming 100 is Gold threshold (sync with client logic)
-      // Or check rankBadge string if reliable:
-      // return profile.rankBadge in ['GOLD', 'PLATINUM', 'DIAMOND'];
-    }
-
-    // Check messaging permission
-    function canMessage(targetUserId) {
-      // TEMPORARY: Allow all authenticated users to message for testing
-      // TODO: Re-enable strict permissions for production
-      return true;
-      
-      /* ORIGINAL LOGIC (commented out for testing):
-      let sender = getProfile(request.auth.uid);
-      let target = getProfile(targetUserId);
-      
-      return sender.isAdmin == true 
-          || sender.homeVenueId == target.homeVenueId
-          || isGoldOrHigher(sender)
-          || (sender.unlockedVenueIds != null && target.homeVenueId in sender.unlockedVenueIds);
-      */
-    }
-
-    // --- Rules ---
-
-    // Profiles
+    // ============================================
+    // Profiles（ユーザープロフィール）
+    // ============================================
     match /profiles/{userId} {
+      // 読み取り: 認証済みユーザーのみ
       allow read: if isAuthenticated();
       
-      allow create: if isAuthenticated() && isOwner(userId) 
-          && (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false);
+      // 作成: 自分のプロフィールのみ作成可能
+      allow create: if isAuthenticated() && isOwner(userId) &&
+        // isAdminフィールドは自分で設定できない
+        (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == false);
       
+      // 更新: 自分のプロフィールのみ（isAdminは変更不可）
       allow update: if isAuthenticated() && (
         isAdmin() || 
-        (isOwner(userId) && request.resource.data.isAdmin == resource.data.isAdmin)
+        (isOwner(userId) && 
+          // isAdminフィールドは変更できない
+          (!('isAdmin' in request.resource.data) || request.resource.data.isAdmin == resource.data.isAdmin) &&
+          // rankBadge, rankScoreは自分で変更できない（不正防止）
+          request.resource.data.rankBadge == resource.data.rankBadge &&
+          request.resource.data.rankScore == resource.data.rankScore
+        )
       );
       
+      // 削除: 管理者のみ
       allow delete: if isAdmin();
     }
 
-    // Invites
+    // ============================================
+    // Invites（招待コード）
+    // ============================================
     match /invites/{inviteId} {
-      allow read: if true; 
-      allow create: if isAuthenticated(); 
+      // 読み取り: 認証なしでも可（招待コード検証用）
+      allow read: if true;
+      
+      // 作成: 認証済みユーザー
+      allow create: if isAuthenticated();
+      
+      // 更新: 作成者または管理者
       allow update: if isAuthenticated() && (
-          isAdmin() ||
-          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['useCount'])
-           && request.resource.data.useCount == resource.data.useCount + 1)
+        resource.data.createdBy == request.auth.uid || isAdmin()
       );
-    }
-
-    // InviteUsages
-    match /inviteUsages/{usageId} {
-      allow read: if isAuthenticated() && (
-          resource.data.usedBy == request.auth.uid || 
-          resource.data.referredBy == request.auth.uid ||
-          isAdmin()
-      );
-      allow create: if isAuthenticated() && request.resource.data.usedBy == request.auth.uid;
-    }
-
-    // Events & Participants (Subcollection)
-    match /events/{eventId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin();
-      allow update: if isAdmin();
+      
+      // 削除: 管理者のみ
       allow delete: if isAdmin();
+    }
 
-      // Nested Participants
+    // ============================================
+    // InviteUsages（招待コード使用履歴）
+    // ============================================
+    match /inviteUsages/{usageId} {
+      // 読み取り: 認証済みユーザー
+      allow read: if isAuthenticated();
+      
+      // 作成: 認証済みユーザー（自分の使用記録のみ）
+      allow create: if isAuthenticated() && 
+        request.resource.data.usedBy == request.auth.uid;
+      
+      // 更新・削除: 不可（履歴は改ざん不可）
+      allow update, delete: if false;
+    }
+
+    // ============================================
+    // Events（イベント）
+    // ============================================
+    match /events/{eventId} {
+      // 読み取り: 認証済みユーザー
+      allow read: if isAuthenticated();
+      
+      // 作成・更新・削除: 管理者のみ
+      allow create, update, delete: if isAdmin();
+      
+      // ============================================
+      // Participants（イベント参加者）サブコレクション
+      // ============================================
       match /participants/{participantId} {
+        // 読み取り: 認証済みユーザー
         allow read: if isAuthenticated();
-        allow create, update: if isAuthenticated() && (request.resource.data.userId == request.auth.uid || isAdmin());
-        allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+        
+        // 作成: 認証済みユーザー（自分の参加のみ）
+        allow create: if isAuthenticated() && 
+          request.resource.data.userId == request.auth.uid;
+        
+        // 更新: 自分の参加情報または管理者
+        allow update: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid || isAdmin()
+        );
+        
+        // 削除: 自分の参加情報または管理者
+        allow delete: if isAuthenticated() && (
+          resource.data.userId == request.auth.uid || isAdmin()
+        );
       }
     }
 
-    // Threads & Messages (Subcollection)
+    // ============================================
+    // Threads（メッセージスレッド）
+    // ============================================
     match /threads/{threadId} {
+      // 読み取り: スレッド参加者のみ
+      allow read: if isAuthenticated() && 
+        request.auth.uid in resource.data.participantUserIds;
+      
+      // 作成: 認証済みユーザー
+      allow create: if isAuthenticated() && 
+        request.auth.uid in request.resource.data.participantUserIds;
+      
+      // 更新: スレッド参加者のみ
+      allow update: if isAuthenticated() && 
+        request.auth.uid in resource.data.participantUserIds;
+      
+      // 削除: 不可
+      allow delete: if false;
+      
+      // ============================================
+      // Messages（メッセージ）サブコレクション
+      // ============================================
+      match /messages/{messageId} {
+        // 読み取り: 親スレッドの参加者のみ
+        allow read: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantUserIds;
+        
+        // 作成: 親スレッドの参加者のみ
+        allow create: if isAuthenticated() && 
+          request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantUserIds &&
+          request.resource.data.senderUserId == request.auth.uid;
+        
+        // 更新: 送信者のみ（既読フラグ更新用）
+        allow update: if isAuthenticated() && (
+          resource.data.senderUserId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantUserIds
+        );
+        
+        // 削除: 不可
+        allow delete: if false;
+      }
+    }
+
+    // ============================================
+    // Messages（レガシー・ルートコレクション）
+    // ============================================
+    match /messages/{messageId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
       allow update: if isAuthenticated();
-      
-      /* 
-      // STRICT RULES (Temporarily disabled for debugging)
-      allow read: if isAuthenticated() && (request.auth.uid in resource.data.participantUserIds);
-      allow update: if isAuthenticated() && (request.auth.uid in resource.data.participantUserIds);
-      allow create: if isAuthenticated() 
-          && request.resource.data.participantUserIds.hasAll([request.auth.uid])
-          && canMessage(request.resource.data.participantUserIds[1] == request.auth.uid ? request.resource.data.participantUserIds[0] : request.resource.data.participantUserIds[1]);
-      */
-
-      // Nested Messages
-      match /messages/{messageId} {
-        allow read: if isAuthenticated();
-        allow create: if isAuthenticated();
-        allow update: if isAuthenticated();
-
-        /*
-        // STRICT RULES (Temporarily disabled for debugging)
-        allow read: if isAuthenticated() && (request.auth.uid in get(/databases/$(database)/documents/threads/$(threadId)).data.participantUserIds);
-        allow create: if isAuthenticated() && request.resource.data.senderUserId == request.auth.uid;
-        */
-      }
+      allow delete: if false;
     }
 
-    // Interests
+    // ============================================
+    // Interests（興味あり）
+    // ============================================
     match /interests/{interestId} {
+      // 読み取り: 認証済みユーザー
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.fromUserId == request.auth.uid;
-      allow delete: if isAuthenticated() && resource.data.fromUserId == request.auth.uid;
+      
+      // 作成: 認証済み & 自分が送信者
+      allow create: if isAuthenticated() && 
+        request.resource.data.fromUserId == request.auth.uid;
+      
+      // 更新: 不可
+      allow update: if false;
+      
+      // 削除: 送信者のみ
+      allow delete: if isAuthenticated() && 
+        resource.data.fromUserId == request.auth.uid;
     }
 
-    // Notifications
+    // ============================================
+    // Notifications（通知）
+    // ============================================
     match /notifications/{notificationId} {
-      allow read: if isAuthenticated() && resource.data.targetUserId == request.auth.uid;
+      // 読み取り: 対象ユーザーまたは管理者
+      allow read: if isAuthenticated() && (
+        resource.data.targetUserId == request.auth.uid ||
+        resource.data.targetUserId == 'admin' && isAdmin()
+      );
+      
+      // 作成: 認証済みユーザー
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated() && resource.data.targetUserId == request.auth.uid;
-      allow delete: if isAuthenticated() && (resource.data.targetUserId == request.auth.uid || isAdmin());
+      
+      // 更新: 対象ユーザーのみ（既読フラグ用）
+      allow update: if isAuthenticated() && 
+        resource.data.targetUserId == request.auth.uid;
+      
+      // 削除: 対象ユーザーまたは管理者
+      allow delete: if isAuthenticated() && (
+        resource.data.targetUserId == request.auth.uid || isAdmin()
+      );
+    }
+
+    // ============================================
+    // Connections（コネクション）
+    // ============================================
+    match /connections/{connectionId} {
+      // 読み取り: 自分のコネクションのみ
+      allow read: if isAuthenticated() &&
+        resource.data.ownerUserId == request.auth.uid;
+      
+      // 作成: 認証済み & 自分がオーナー
+      allow create: if isAuthenticated() && 
+        request.resource.data.ownerUserId == request.auth.uid;
+
+      // 更新: 自分のコネクションのみ
+      allow update: if isAuthenticated() && 
+        resource.data.ownerUserId == request.auth.uid;
+
+      // 削除: 自分のコネクションのみ
+      allow delete: if isAuthenticated() && 
+        resource.data.ownerUserId == request.auth.uid;
     }
   }
 }

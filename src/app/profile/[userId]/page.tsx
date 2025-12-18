@@ -10,7 +10,7 @@ import { ProfileHeader } from '@/components/profile/ProfileHeader';
 import { ProfileInfo } from '@/components/profile/ProfileInfo';
 import { ProfileLocked } from '@/components/profile/ProfileLocked';
 import { Button } from '@/components/ui/Button';
-import { MessageCircle, Heart, Edit, Check, LogOut } from 'lucide-react';
+import { MessageCircle, Heart, Edit, Check, LogOut, UserPlus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { use } from 'react';
 import { toast } from 'sonner';
@@ -217,6 +217,14 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
                                         興味あり
                                     </>
                                 )}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="shadow-xl bg-surface-elevated border-white/10"
+                                onClick={() => router.push(`/connections/add?userId=${profile.userId}`)}
+                            >
+                                <UserPlus className="w-4 h-4 mr-2" />
+                                コネクション追加
                             </Button>
                             {canMessage && (
                                 <Button

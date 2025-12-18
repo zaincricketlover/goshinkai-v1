@@ -124,6 +124,8 @@ export const RegisterForm = () => {
             });
 
             // 7. 紹介者にポイント付与 & 紹介人数カウントアップ
+            // TODO: ポイント付与はCloud Functionsに移行すべき（クライアント側での改ざん防止）
+            // 現在は暫定的にクライアント側で実行
             if (referrerId && referrerId !== 'system') {
                 const referrerRef = doc(db, 'profiles', referrerId);
                 await updateDoc(referrerRef, {
