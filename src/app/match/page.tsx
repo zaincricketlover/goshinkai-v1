@@ -50,33 +50,70 @@ export default function MatchPage() {
 
     useEffect(() => {
         const fetchRecommendations = async () => {
-            if (!profile) return;
+            if (!profile) {
+                console.log('No profile available');
+                return;
+            }
+
+            setLoading(true);
             try {
-                // Fetch ALL profiles to ensure we find matches
-                const q = query(collection(db, 'profiles'));
-                const snap = await getDocs(q);
+                // 全プロフィールを取得
+                const profilesSnap = await getDocs(collection(db, 'profiles'));
+                console.log('Total profiles found:', profilesSnap.size);
+
+                // 既に興味ありを送った相手を取得
+                const sentInterestsSnap = await getDocs(
+                    query(
+                        collection(db, 'interests'),
+                        where('fromUserId', '==', profile.userId)
+                    )
+                );
+                const sentToIds = new Set(
+                    sentInterestsSnap.docs.map(d => d.data().toUserId)
+                );
+
                 const candidates: any[] = [];
 
-                snap.forEach(d => {
-                    const data = d.data() as UserProfile;
-                    // Exclude self and ensure valid data
-                    if (data.userId !== profile.userId && data.name) {
-                        const score = calculateMatchScore(profile, data);
-                        candidates.push({ ...data, matchResult: { score } });
-                    }
+                profilesSnap.forEach(docSnap => {
+                    const data = docSnap.data() as UserProfile;
+
+                    // 自分自身を除外
+                    if (data.userId === profile.userId) return;
+
+                    // 名前がない人を除外
+                    if (!data.name) return;
+
+                    // 既に興味ありを送った人を除外
+                    if (sentToIds.has(data.userId)) return;
+
+                    // マッチスコアを計算
+                    const score = calculateMatchScore(profile, data);
+
+                    candidates.push({
+                        ...data,
+                        matchResult: { score }
+                    });
                 });
 
-                // Sort by score
+                // スコア順にソート
                 candidates.sort((a, b) => b.matchResult.score - a.matchResult.score);
 
-                // Limit strictly to top 20 AFTER sorting
+                console.log('Candidates after filtering:', candidates.length);
                 setRecommendedUsers(candidates.slice(0, 20));
-            } catch (error) {
-                console.error(error);
+
+            } catch (error: any) {
+                console.error('Error fetching recommendations:', error);
+
+                if (error?.code === 'permission-denied') {
+                    toast.error('データの取得権限がありません');
+                } else {
+                    toast.error('おすすめの取得に失敗しました');
+                }
             } finally {
                 setLoading(false);
             }
         };
+
         fetchRecommendations();
     }, [profile]);
 
@@ -112,8 +149,22 @@ export default function MatchPage() {
     if (!currentMatch) {
         return (
             <div className="min-h-screen bg-primary flex flex-col items-center justify-center p-4">
-                <p className="text-gray-400 mb-4">現在おすすめできるメンバーがいません</p>
-                <Button variant="outline" onClick={() => router.push('/home')}>ホームに戻る</Button>
+                <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🔍</div>
+                    <h3 className="text-xl font-bold text-white mb-2">
+                        おすすめメンバーがいません
+                    </h3>
+                    <p className="text-gray-400 mb-6">
+                        プロフィールを充実させると<br />
+                        マッチング精度が上がります
+                    </p>
+                    <Button
+                        variant="gold"
+                        onClick={() => router.push('/profile/edit')}
+                    >
+                        プロフィールを編集
+                    </Button>
+                </div>
             </div>
         );
     }

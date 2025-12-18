@@ -74,17 +74,20 @@ export const RegisterForm = () => {
             // 3. 新規ユーザー用の招待コードを生成
             const newUserInviteCode = generateInviteCode(user.uid);
 
-            // 4. ユーザープロフィール作成
-            // undefinedのフィールドを除外するヘルパー関数
-            const removeUndefined = (obj: Record<string, any>) => {
+            // undefinedをnullに変換するヘルパー関数
+            const removeUndefined = (obj: Record<string, any>): Record<string, any> => {
                 return Object.fromEntries(
-                    Object.entries(obj).filter(([_, v]) => v !== undefined)
+                    Object.entries(obj).map(([key, value]) => [
+                        key,
+                        value === undefined ? null : value
+                    ])
                 );
             };
 
             const userProfile = removeUndefined({
                 userId: user.uid,
-                name: name,
+                email: user.email ?? null,
+                name: name?.trim() ?? '',
                 kana: '',
                 avatarUrl: '',
                 companyName: '',
@@ -101,7 +104,7 @@ export const RegisterForm = () => {
                 referralCount: 0,
                 inviteCode: null, // 初期値はnull（ホーム画面で設定）
                 createdAt: serverTimestamp(),
-                referredBy: referrerId || null,
+                referredBy: referrerId ?? null,
             });
 
             await setDoc(doc(db, 'profiles', user.uid), userProfile);
@@ -115,7 +118,7 @@ export const RegisterForm = () => {
             await addDoc(collection(db, 'inviteUsages'), {
                 inviteCode: inviteCode.toUpperCase().trim(),
                 usedBy: user.uid,
-                referredBy: referrerId,
+                referredBy: referrerId ?? null,
                 usedAt: serverTimestamp(),
                 pointsAwarded: REFERRAL_POINTS,
             });

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { doc, getDoc, addDoc, collection, query, where, getDocs, serverTimestamp, or } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, query, where, getDocs, serverTimestamp, or, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { UserProfile } from '@/lib/types';
 import { canViewProfileDetail, canSendDirectMessage } from '@/lib/permissions';
@@ -51,14 +51,10 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
             if (!user || !resolvedParams.userId) return;
 
             try {
-                const interestsRef = collection(db, 'interests');
-                const q = query(
-                    interestsRef,
-                    where('fromUserId', '==', user.uid),
-                    where('toUserId', '==', resolvedParams.userId)
-                );
-                const interestSnap = await getDocs(q);
-                setIsInterested(!interestSnap.empty);
+                const interestDocId = `${user.uid}_${resolvedParams.userId}`;
+                const interestRef = doc(db, 'interests', interestDocId);
+                const interestSnap = await getDoc(interestRef);
+                setIsInterested(interestSnap.exists());
             } catch (err) {
                 console.error('Error checking interest:', err);
             }
@@ -72,25 +68,17 @@ export default function ProfilePage({ params }: { params: Promise<{ userId: stri
         setInterestLoading(true);
 
         try {
+            const interestDocId = `${user.uid}_${profile.userId}`;
+            const interestRef = doc(db, 'interests', interestDocId);
+
             if (isInterested) {
                 // Remove interest (Toggle Off)
-                const interestsRef = collection(db, 'interests');
-                const q = query(
-                    interestsRef,
-                    where('fromUserId', '==', user.uid),
-                    where('toUserId', '==', profile.userId)
-                );
-                const snapshot = await getDocs(q);
-
-                // There might be duplicates, delete all matching
-                const deletePromises = snapshot.docs.map(doc => import('firebase/firestore').then(({ deleteDoc }) => deleteDoc(doc.ref)));
-                await Promise.all(deletePromises);
-
+                await deleteDoc(interestRef);
                 setIsInterested(false);
                 toast.info('興味ありを取り消しました');
             } else {
-                // Add interest (Toggle On)
-                await addDoc(collection(db, 'interests'), {
+                // Add interest (Toggle On) - setDoc with deterministic ID
+                await setDoc(interestRef, {
                     fromUserId: user.uid,
                     toUserId: profile.userId,
                     createdAt: serverTimestamp()

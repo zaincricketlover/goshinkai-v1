@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from './Input';
 import { Button } from './Button';
-import { doc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
 
@@ -19,23 +19,48 @@ export const SetInviteCodeModal: React.FC<SetInviteCodeModalProps> = ({ isOpen, 
     const [loading, setLoading] = useState(false);
 
     const handleSubmit = async () => {
-        if (!inviteCode || inviteCode.length < 4) {
+        const code = inviteCode.toUpperCase().trim();
+
+        if (!code || code.length < 4) {
             toast.error('4文字以上で入力してください');
             return;
         }
 
-        if (!/^[a-zA-Z0-9]+$/.test(inviteCode)) {
+        if (!/^[a-zA-Z0-9]+$/.test(code)) {
             toast.error('英数字のみ使用できます');
             return;
         }
 
         setLoading(true);
         try {
+            const profileRef = doc(db, 'profiles', userId);
+            const profileSnap = await getDoc(profileRef);
+
+            // プロフィールが存在しない場合
+            if (!profileSnap.exists()) {
+                await setDoc(profileRef, {
+                    userId,
+                    inviteCode: code,
+                    inviteCodeSetAt: serverTimestamp()
+                }, { merge: true });
+                toast.success('招待コードを設定しました');
+                onClose();
+                return;
+            }
+
+            const currentData = profileSnap.data();
+
+            // 既に設定済みの場合
+            if (currentData?.inviteCode) {
+                toast.error('招待コードは既に設定済みです（変更不可）');
+                setLoading(false);
+                return;
+            }
+
             // 重複チェック
-            // Check profiles collection as requested
             const existingQuery = query(
                 collection(db, 'profiles'),
-                where('inviteCode', '==', inviteCode.toUpperCase())
+                where('inviteCode', '==', code)
             );
             const existing = await getDocs(existingQuery);
 
@@ -45,16 +70,17 @@ export const SetInviteCodeModal: React.FC<SetInviteCodeModalProps> = ({ isOpen, 
                 return;
             }
 
-            // プロフィールに保存
-            await updateDoc(doc(db, 'profiles', userId), {
-                inviteCode: inviteCode.toUpperCase()
-            });
+            // 保存（setDoc with merge）
+            await setDoc(profileRef, {
+                inviteCode: code,
+                inviteCodeSetAt: serverTimestamp()
+            }, { merge: true });
 
             toast.success('招待コードを設定しました');
-            onClose(); // モーダルを閉じる
+            onClose();
         } catch (error) {
             console.error('Error setting invite code:', error);
-            toast.error('設定に失敗しました');
+            toast.error('設定に失敗しました。再度お試しください。');
         } finally {
             setLoading(false);
         }

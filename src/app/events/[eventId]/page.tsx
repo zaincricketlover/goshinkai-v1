@@ -192,19 +192,26 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
         }
     };
 
-    const handleAddToCalendar = () => {
-        if (!event) return;
-        const startDate = event.dateTime.toDate();
-        const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2 hours duration assumption
+    const buildGoogleCalendarUrl = () => {
+        if (!event || !event.dateTime) return null;
 
-        const formatForGoogle = (date: Date) => {
-            return date.toISOString().replace(/-|:|\.\d+/g, '').slice(0, 15) + 'Z';
-        };
+        try {
+            // Timestamp型かチェック
+            const startDate = (event.dateTime as any).toDate ? (event.dateTime as any).toDate() : new Date(event.dateTime as any);
+            const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000); // 2時間後
 
-        const googleCalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title)}&dates=${formatForGoogle(startDate)}/${formatForGoogle(endDate)}&location=${encodeURIComponent(event.location)}&details=${encodeURIComponent(event.description || '')}`;
+            const formatForGoogle = (date: Date) => {
+                return date.toISOString().replace(/-|:|\.\d{3}/g, '').slice(0, 15) + 'Z';
+            };
 
-        window.open(googleCalUrl, '_blank');
+            return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(event.title || '')}&dates=${formatForGoogle(startDate)}/${formatForGoogle(endDate)}&location=${encodeURIComponent(event.location || '')}&details=${encodeURIComponent(event.description || '')}`;
+        } catch (error) {
+            console.error('Calendar URL error:', error);
+            return null;
+        }
     };
+
+    const calendarUrl = buildGoogleCalendarUrl();
 
     if (loading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div></div>;
     if (!event) return <div className="text-center p-8 text-white">イベントが見つかりません</div>;
@@ -231,10 +238,22 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                             <ExternalLink className="w-3 h-3" />
                         </a>
 
-                        <Button variant="outline" size="sm" onClick={handleAddToCalendar}>
-                            <CalendarIcon className="w-4 h-4 mr-2" />
-                            カレンダーに追加
-                        </Button>
+                        {calendarUrl ? (
+                            <a
+                                href={calendarUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-accent/30 text-accent hover:bg-accent/10 transition-colors text-sm"
+                            >
+                                <CalendarIcon className="w-4 h-4" />
+                                カレンダーに追加
+                            </a>
+                        ) : (
+                            <Button variant="outline" size="sm" disabled>
+                                <CalendarIcon className="w-4 h-4 mr-2" />
+                                カレンダーに追加
+                            </Button>
+                        )}
                     </div>
                 </div>
 
