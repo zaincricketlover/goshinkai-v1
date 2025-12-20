@@ -186,8 +186,8 @@ export default function EditProfilePage() {
                     <Card title="タグ設定">
                         <div className="space-y-4">
                             <Input label="業界（カンマ区切り）" value={industries} onChange={(e) => setIndustries(e.target.value)} placeholder="IT, 不動産, 金融" />
-                            <Input label="WANT（求めていること・人）" value={wantTags} onChange={(e) => setWantTags(e.target.value)} placeholder="エンジニア採用, 資金調達, 販路拡大" />
-                            <Input label="GIVE（提供できること）" value={giveTags} onChange={(e) => setGiveTags(e.target.value)} placeholder="技術支援, 経営アドバイス, 人脈紹介" />
+                            <Input id="want" label="WANT（求めていること・人）" value={wantTags} onChange={(e) => setWantTags(e.target.value)} placeholder="エンジニア採用, 資金調達, 販路拡大" />
+                            <Input id="give" label="GIVE（提供できること）" value={giveTags} onChange={(e) => setGiveTags(e.target.value)} placeholder="技術支援, 経営アドバイス, 人脈紹介" />
                         </div>
                     </Card>
 

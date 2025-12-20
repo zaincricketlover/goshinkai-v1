@@ -1,8 +1,9 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { UserProfile } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Copy, Calendar, User } from 'lucide-react';
+import { Copy, Calendar, User, Plus, Users, Heart, MessageSquare, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
@@ -40,8 +41,69 @@ export const ProfileInfo: React.FC<ProfileInfoProps> = ({ profile, isOwnProfile 
         fetchExtras();
     }, [profile]);
 
+    const getRankInfo = (score: number) => {
+        if (score < 100) return { current: 'WHITE', next: 'BLUE', progress: score, threshold: 100 };
+        if (score < 300) return { current: 'BLUE', next: 'SILVER', progress: score - 100, threshold: 200 };
+        if (score < 800) return { current: 'SILVER', next: 'GOLD', progress: score - 300, threshold: 500 };
+        if (score < 2000) return { current: 'GOLD', next: 'DIAMOND', progress: score - 800, threshold: 1200 };
+        return { current: 'PLATINUM', next: 'MAX', progress: 100, threshold: 100 };
+    };
+
+    const rankInfo = getRankInfo(profile.rankScore || 0);
+
     return (
         <div className="space-y-6">
+            {/* 統計ダッシュボード */}
+            {isOwnProfile && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 px-2">
+                    <Card className="flex flex-col items-center justify-center py-4 bg-surface/40">
+                        <Users className="w-5 h-5 text-blue-400 mb-2" />
+                        <span className="text-2xl font-bold text-white">{profile.connectionsCount || 0}</span>
+                        <span className="text-[10px] text-gray-500">人脈</span>
+                    </Card>
+                    <Card className="flex flex-col items-center justify-center py-4 bg-surface/40">
+                        <Heart className="w-5 h-5 text-pink-400 mb-2" />
+                        <span className="text-2xl font-bold text-white">{profile.interestsReceived || 0}</span>
+                        <span className="text-[10px] text-gray-500">興味あり</span>
+                    </Card>
+                    <Card className="flex flex-col items-center justify-center py-4 bg-surface/40">
+                        <Calendar className="w-5 h-5 text-green-400 mb-2" />
+                        <span className="text-2xl font-bold text-white">{profile.eventsAttended || 0}</span>
+                        <span className="text-[10px] text-gray-500">参加イベント</span>
+                    </Card>
+                    <Card className="flex flex-col items-center justify-center py-4 bg-surface/40">
+                        <TrendingUp className="w-5 h-5 text-accent mb-2" />
+                        <span className="text-2xl font-bold text-white">{profile.referralCount || 0}</span>
+                        <span className="text-[10px] text-gray-500">招待数</span>
+                    </Card>
+                </div>
+            )}
+
+            {/* ランク進捗 */}
+            {isOwnProfile && (
+                <Card className="mx-2">
+                    <div className="flex justify-between items-end mb-2">
+                        <div>
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Current Rank</p>
+                            <p className="text-sm font-bold text-accent">{rankInfo.current}</p>
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Next Rank</p>
+                            <p className="text-sm font-bold text-gray-400">{rankInfo.next}</p>
+                        </div>
+                    </div>
+                    <div className="w-full bg-gray-800 h-1.5 rounded-full overflow-hidden">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(rankInfo.progress / rankInfo.threshold) * 100}%` }}
+                            className="bg-accent h-full"
+                        />
+                    </div>
+                    <p className="text-[10px] text-center text-gray-500 mt-2">
+                        次のランクまであと <span className="text-accent font-bold">{rankInfo.threshold - rankInfo.progress}</span> スコア
+                    </p>
+                </Card>
+            )}
             {/* Catch Copy & Bio */}
             <Card>
                 {profile.catchCopy && (
@@ -70,7 +132,16 @@ export const ProfileInfo: React.FC<ProfileInfoProps> = ({ profile, isOwnProfile 
 
             {/* Tags */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card title="WANT (求めているもの)">
+                <Card title="WANT (求めているもの)" action={
+                    isOwnProfile ? (
+                        <button
+                            onClick={() => router.push('/profile/edit#want')}
+                            className="text-accent hover:text-accent/80 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    ) : undefined
+                }>
                     <div className="flex flex-wrap gap-2">
                         {profile.wantTags && profile.wantTags.length > 0 ? (
                             profile.wantTags.map((tag, i) => (
@@ -83,7 +154,16 @@ export const ProfileInfo: React.FC<ProfileInfoProps> = ({ profile, isOwnProfile 
                         )}
                     </div>
                 </Card>
-                <Card title="GIVE (提供できるもの)">
+                <Card title="GIVE (提供できるもの)" action={
+                    isOwnProfile ? (
+                        <button
+                            onClick={() => router.push('/profile/edit#give')}
+                            className="text-accent hover:text-accent/80 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                        </button>
+                    ) : undefined
+                }>
                     <div className="flex flex-wrap gap-2">
                         {profile.giveTags && profile.giveTags.length > 0 ? (
                             profile.giveTags.map((tag, i) => (

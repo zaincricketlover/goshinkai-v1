@@ -1,16 +1,19 @@
 "use client";
 
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
-import React, { MouseEvent } from "react";
+import React, { MouseEvent, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { QRCodeSVG } from "qrcode.react";
 import { RANK_BADGES } from "@/lib/constants";
 import { BusinessCardModal } from "./BusinessCardModal";
-import { useState } from "react";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
 
 export const LuxuryCard = () => {
     const { profile } = useAuth();
     const [showBusinessCard, setShowBusinessCard] = useState(false);
+    const [isPressed, setIsPressed] = useState(false);
+
     const x = useMotionValue(0);
     const y = useMotionValue(0);
 
@@ -32,6 +35,7 @@ export const LuxuryCard = () => {
     function handleMouseLeave() {
         x.set(0);
         y.set(0);
+        setIsPressed(false);
     }
 
     if (!profile) return null;
@@ -43,63 +47,60 @@ export const LuxuryCard = () => {
             <motion.div
                 onMouseMove={handleMouseMove}
                 onMouseLeave={handleMouseLeave}
+                onMouseDown={() => setIsPressed(true)}
+                onMouseUp={() => setIsPressed(false)}
+                animate={{
+                    rotateY: isPressed ? 5 : 0,
+                    rotateX: isPressed ? -5 : 0,
+                }}
                 style={{
                     rotateX: springRotateX,
                     rotateY: springRotateY,
                     transformStyle: "preserve-3d",
                 }}
-                className="relative h-56 w-full rounded-2xl shadow-2xl border border-white/10 overflow-hidden cursor-pointer group"
+                className="relative min-h-[16rem] w-full rounded-2xl shadow-2xl border border-accent/20 overflow-hidden cursor-pointer group bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900"
             >
                 {/* 背景グラデーション */}
-                <div className="absolute inset-0 bg-gradient-to-br from-surface-elevated via-surface to-primary z-0" />
+                <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-accent/5 pointer-events-none" />
 
-                {/* シャイン効果 */}
-                <div className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out" />
-                </div>
-
-                {/* ホログラム光沢エフェクト - 常に表示してマウス追従 */}
+                {/* ホログラム光沢エフェクト */}
                 <motion.div
                     style={{
                         x: useTransform(x, [-100, 100], [-50, 50]),
                         y: useTransform(y, [-100, 100], [-50, 50])
                     }}
-                    className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15)_0%,transparent_50%)] pointer-events-none"
+                    className="absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.1)_0%,transparent_50%)] pointer-events-none"
                 />
 
                 {/* カードコンテンツ */}
-                <div className="relative z-20 h-full p-6 flex flex-col justify-between">
-                    {/* ヘッダー */}
-                    <div className="flex justify-between items-start">
+                <div className="relative z-20 h-full p-6 flex flex-col">
+                    {/* ロゴ・ブランド */}
+                    <div className="flex justify-between items-start mb-6">
                         <div>
-                            <h2 className="text-2xl font-bold text-gradient-gold tracking-wide">伍心会</h2>
-                            <p className="text-[10px] text-gray-400 tracking-[0.2em] uppercase">Members Club</p>
+                            <p className="text-accent text-xs font-medium tracking-wider">GOSHINKAI</p>
+                            <p className="text-gray-500 text-[10px]">EXECUTIVE MEMBER</p>
                         </div>
-                        <div className="flex flex-col items-end">
-                            <span
-                                className="text-xs font-bold tracking-wider px-3 py-1 rounded-full border"
-                                style={{
-                                    borderColor: rankInfo.color,
-                                    color: rankInfo.color,
-                                    backgroundColor: `${rankInfo.color}15`
-                                }}
-                            >
-                                {rankInfo.label}
-                            </span>
-                        </div>
+                        <Badge rank={profile.rankBadge} size="md" />
                     </div>
 
-                    {/* メイン情報 */}
-                    <div className="space-y-1">
-                        <p className="text-[10px] text-accent/70 tracking-widest uppercase">Member</p>
-                        <h3 className="text-xl font-bold text-white tracking-wide">
-                            {profile.name}
-                        </h3>
-                        <p className="text-sm text-gray-400">{profile.companyName || profile.title || ""}</p>
+                    {/* プロフィール写真と名前 */}
+                    <div className="flex items-center gap-4 mb-6">
+                        <Avatar
+                            src={profile.avatarUrl}
+                            alt={profile.name || ''}
+                            size="lg"
+                            rank={profile.rankBadge}
+                            className="border-2 border-accent/30"
+                        />
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-xl font-bold text-white truncate">{profile.name}</h2>
+                            <p className="text-sm text-gray-400 truncate">{profile.companyName}</p>
+                            <p className="text-xs text-gray-500 truncate">{profile.title}</p>
+                        </div>
                     </div>
 
                     {/* フッター */}
-                    <div className="flex justify-between items-end">
+                    <div className="mt-auto flex justify-between items-end">
                         <div>
                             <p className="text-[8px] text-gray-500 mb-1">MEMBER SINCE</p>
                             <p className="text-[10px] text-gray-400 font-mono">
@@ -107,27 +108,29 @@ export const LuxuryCard = () => {
                             </p>
                         </div>
 
-                        {/* QRコード */}
-                        <div
-                            className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-lg border border-accent/20 p-1.5 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors"
+                        {/* QRコードボタン */}
+                        <motion.button
                             onClick={(e) => {
                                 e.stopPropagation();
                                 setShowBusinessCard(true);
                             }}
+                            className="bg-white p-2 rounded-lg"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                         >
                             <QRCodeSVG
-                                value={`goshinkai://profile/${profile.userId}`}
-                                size={44}
-                                bgColor="transparent"
-                                fgColor="#C9A962"
+                                value={`https://goshinkai-v1.vercel.app/profile/${profile.userId}`}
+                                size={48}
+                                bgColor="#FFFFFF"
+                                fgColor="#0A0F1C"
                                 level="L"
                             />
-                        </div>
+                        </motion.button>
                     </div>
                 </div>
 
-                {/* 金属質の枠線 */}
-                <div className="absolute inset-0 border border-accent/20 rounded-2xl z-30 pointer-events-none" />
+                {/* 装飾ライン */}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-accent to-transparent" />
             </motion.div>
 
             <BusinessCardModal

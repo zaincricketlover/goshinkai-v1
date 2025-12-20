@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'sonner';
 import { use } from 'react';
-import { Check, Star, X, MapPin, ExternalLink, Calendar as CalendarIcon } from 'lucide-react';
+import { Check, Star, X, MapPin, ExternalLink, Calendar as CalendarIcon, Navigation, Plus } from 'lucide-react';
 
 export default function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
     const resolvedParams = use(params);
@@ -233,7 +233,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-accent hover:underline text-sm"
                         >
-                            <MapPin className="w-4 h-4" />
+                            <Navigation className="w-4 h-4" />
                             {event.location}を地図で見る
                             <ExternalLink className="w-3 h-3" />
                         </a>
@@ -246,6 +246,7 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                                 className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-accent/30 text-accent hover:bg-accent/10 transition-colors text-sm"
                             >
                                 <CalendarIcon className="w-4 h-4" />
+                                <Plus className="w-3 h-3 -ml-1 border border-accent/30 rounded-full" />
                                 カレンダーに追加
                             </a>
                         ) : (

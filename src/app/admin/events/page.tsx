@@ -10,7 +10,8 @@ import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { isAdmin } from '@/lib/permissions';
 import { Event, VenueId } from '@/lib/types';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Trash2, CheckCircle } from 'lucide-react';
+import { updateDoc, deleteDoc, doc } from 'firebase/firestore';
 
 export default function AdminEventsPage() {
     const { user, profile, loading: authLoading } = useAuth();
@@ -86,6 +87,33 @@ export default function AdminEventsPage() {
             alert('作成に失敗しました');
         } finally {
             setCreating(false);
+        }
+    };
+
+    const handleEndEvent = async (eventId: string, title: string) => {
+        if (!confirm(`イベント「${title}」を終了しますか？`)) return;
+        try {
+            await updateDoc(doc(db, 'events', eventId), {
+                status: 'ended',
+                updatedAt: Timestamp.now()
+            });
+            alert('イベントを終了しました');
+            fetchEvents();
+        } catch (error) {
+            console.error(error);
+            alert('エラーが発生しました');
+        }
+    };
+
+    const handleDeleteEvent = async (eventId: string, title: string) => {
+        if (!confirm(`イベント「${title}」を削除しますか？`)) return;
+        try {
+            await deleteDoc(doc(db, 'events', eventId));
+            alert('イベントを削除しました');
+            fetchEvents();
+        } catch (error) {
+            console.error(error);
+            alert('エラーが発生しました');
         }
     };
 
@@ -199,9 +227,19 @@ export default function AdminEventsPage() {
                                             </span>
                                         </div>
                                     </div>
-                                    <Button size="sm" variant="outline" onClick={() => router.push(`/events/${event.id}`)}>
-                                        詳細
-                                    </Button>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => router.push(`/events/${event.id}`)}>
+                                            詳細
+                                        </Button>
+                                        {(event as any).status !== 'ended' && (
+                                            <Button size="sm" variant="outline" className="text-green-400 border-green-400/30" onClick={() => handleEndEvent(event.id, event.title)}>
+                                                <CheckCircle className="w-4 h-4" />
+                                            </Button>
+                                        )}
+                                        <Button size="sm" variant="outline" className="text-red-400 border-red-400/30" onClick={() => handleDeleteEvent(event.id, event.title)}>
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
                                 </div>
                             ))}
                         </div>

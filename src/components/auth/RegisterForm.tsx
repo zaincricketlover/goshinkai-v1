@@ -105,6 +105,8 @@ export const RegisterForm = () => {
                 inviteCode: null, // 初期値はnull（ホーム画面で設定）
                 createdAt: serverTimestamp(),
                 referredBy: referrerId ?? null,
+                onboardingCompleted: false,
+                connectionsCount: 0,
             });
 
             await setDoc(doc(db, 'profiles', user.uid), userProfile);

@@ -18,12 +18,14 @@ import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
+import { WelcomeOnboarding } from '@/components/onboarding/WelcomeOnboarding';
 
 export default function HomePage() {
     const { profile, loading } = useAuth();
     const router = useRouter();
     const [showWelcome, setShowWelcome] = useState(false);
     const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(false);
     const [actionItems, setActionItems] = useState<any[]>([]);
 
     useEffect(() => {
@@ -105,6 +107,11 @@ export default function HomePage() {
         if (!hasSeenWelcome) {
             setShowWelcome(true);
         }
+
+        // オンボーディング未完了の場合に表示
+        if (profile && !profile.onboardingCompleted) {
+            setShowOnboarding(true);
+        }
     }, [profile]);
 
     const handleCloseWelcome = () => {
@@ -166,6 +173,12 @@ export default function HomePage() {
                         isOpen={showInviteCodeModal}
                         onClose={() => setShowInviteCodeModal(false)}
                         userId={profile.userId}
+                    />
+                    <WelcomeOnboarding
+                        isOpen={showOnboarding}
+                        onClose={() => setShowOnboarding(false)}
+                        userId={profile.userId}
+                        userName={profile.name || ''}
                     />
                 </>
             )}

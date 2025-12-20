@@ -1,12 +1,35 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
 import { RegisterForm } from '@/components/auth/RegisterForm';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function LandingPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
   const [isLogin, setIsLogin] = useState(true);
+
+  // 既にログイン済みの場合はホームにリダイレクト
+  useEffect(() => {
+    if (user && !loading) {
+      router.push('/home');
+    }
+  }, [user, loading, router]);
+
+  // ローディング中は何も表示しない
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-primary flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div>
+      </div>
+    );
+  }
+
+  // 未認証の場合のみログインフォームを表示
+  if (user) return null;
 
   return (
     <div className="min-h-screen bg-primary flex flex-col justify-center items-center p-4 relative overflow-hidden">

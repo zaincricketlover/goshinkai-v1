@@ -96,23 +96,16 @@ export default function AdminUsersPage() {
         if (!confirmed) return;
 
         try {
-            // プロフィールを削除（または非アクティブ化）
-            // For now, we just mark as deleted or actually delete? 
-            // Request said: isActive: false, deletedAt: serverTimestamp()
-            // We need to import serverTimestamp
-            const { serverTimestamp } = await import('firebase/firestore');
+            const { deleteDoc } = await import('firebase/firestore');
 
-            await updateDoc(doc(db, 'profiles', userId), {
-                isActive: false,
-                deletedAt: serverTimestamp()
-            });
+            await deleteDoc(doc(db, 'profiles', userId));
 
             // Remove from local list
             setUsers(users.filter(u => u.userId !== userId));
-            alert(`${userName}さんを退会処理しました`);
+            alert(`${userName}さんを完全に削除しました`);
         } catch (error) {
             console.error(error);
-            alert('退会処理に失敗しました');
+            alert('削除処理に失敗しました');
         }
     };
 

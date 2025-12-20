@@ -50,6 +50,9 @@ export interface UserProfile {
     businessPhone?: string;
     businessAddress?: string;
 
+    onboardingCompleted?: boolean;
+    connectionsCount?: number;
+
     createdAt: Timestamp;
 }
 

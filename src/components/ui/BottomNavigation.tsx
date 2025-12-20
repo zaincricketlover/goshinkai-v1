@@ -11,10 +11,11 @@ import { cn } from '@/lib/utils';
 export default function BottomNavigation() {
     const router = useRouter();
     const pathname = usePathname();
-    const { user, profile } = useAuth();
+    const { user, profile, loading } = useAuth();
     const { threads } = useMessages(user?.uid);
 
-    if (!user) return null;
+    // ローディング中または未認証の場合はナビを表示しない
+    if (loading || !user) return null;
 
     // Hide on login/setup pages
     if (pathname === '/' || pathname === '/setup') return null;
