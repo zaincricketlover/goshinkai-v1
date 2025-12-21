@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { LuxuryCard } from '@/components/home/LuxuryCard';
+import { MemberCard3D } from '@/components/home/MemberCard3D';
+import { BusinessCardModal } from '@/components/home/BusinessCardModal';
 import { EventCountdown } from '@/components/home/EventCountdown';
 import { ActionCards } from '@/components/home/ActionCards';
 import { RecommendedMembers } from '@/components/home/RecommendedMembers';
@@ -26,6 +27,7 @@ export default function HomePage() {
     const [showWelcome, setShowWelcome] = useState(false);
     const [showInviteCodeModal, setShowInviteCodeModal] = useState(false);
     const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showBusinessCardModal, setShowBusinessCardModal] = useState(false);
     const [actionItems, setActionItems] = useState<any[]>([]);
 
     useEffect(() => {
@@ -192,7 +194,10 @@ export default function HomePage() {
                         className="space-y-6"
                     >
                         <motion.section variants={slideUp}>
-                            <LuxuryCard />
+                            <MemberCard3D
+                                profile={profile as any}
+                                onQRClick={() => setShowBusinessCardModal(true)}
+                            />
                         </motion.section>
 
                         <motion.section variants={fadeInUp}>
@@ -268,6 +273,12 @@ export default function HomePage() {
                     </motion.div>
                 </div>
             </div>
+
+            <BusinessCardModal
+                isOpen={showBusinessCardModal}
+                onClose={() => setShowBusinessCardModal(false)}
+                profile={profile as any}
+            />
         </div>
     );
 }

@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { Button } from '@/components/ui/Button';
@@ -14,9 +14,10 @@ import { Camera, Save, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function EditProfilePage() {
-    const { profile, loading: authLoading } = useAuth();
+    const { user, profile, loading: authLoading } = useAuth();
     const router = useRouter();
     const [saving, setSaving] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Form States
@@ -58,10 +59,13 @@ export default function EditProfilePage() {
     if (authLoading) return <div className="min-h-screen bg-primary flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-accent rounded-full border-t-transparent"></div></div>;
     if (!profile) { router.push('/'); return null; }
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            if (file.size > 5 * 1024 * 1024) { toast.error('画像サイズは5MB以下にしてください'); return; }
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            if (file.size > 5 * 1024 * 1024) {
+                toast.error('画像は5MB以下にしてください');
+                return;
+            }
             setAvatarFile(file);
             const reader = new FileReader();
             reader.onloadend = () => setAvatarPreview(reader.result as string);
@@ -78,47 +82,88 @@ export default function EditProfilePage() {
         }
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!user) {
+            toast.error('ログインしてください');
+            return;
+        }
+
         setSaving(true);
+
         try {
-            let avatarUrl = profile.avatarUrl;
+            let finalAvatarUrl = profile.avatarUrl;
+
             if (avatarFile) {
-                const storageRef = ref(storage, `avatars/${profile.userId}`);
-                await uploadBytes(storageRef, avatarFile);
-                avatarUrl = await getDownloadURL(storageRef);
+                setUploading(true);
+                console.log('Uploading avatar...');
+
+                try {
+                    const timestamp = Date.now();
+                    const fileExtension = avatarFile.name.split('.').pop() || 'jpg';
+                    const fileName = `${user.uid}_${timestamp}.${fileExtension}`;
+                    const storagePath = `avatars/${user.uid}/${fileName}`;
+
+                    console.log('Storage path:', storagePath);
+                    const storageRef = ref(storage, storagePath);
+
+                    const uploadResult = await uploadBytes(storageRef, avatarFile);
+                    console.log('Upload completed:', uploadResult);
+
+                    finalAvatarUrl = await getDownloadURL(uploadResult.ref);
+                    console.log('Download URL:', finalAvatarUrl);
+
+                } catch (uploadError: any) {
+                    console.error('Upload error:', uploadError);
+                    toast.error('画像のアップロードに失敗しました: ' + uploadError.message);
+                    setSaving(false);
+                    setUploading(false);
+                    return;
+                }
+                setUploading(false);
             }
 
             if (businessCardFile) {
-                const storageRef = ref(storage, `businessCards/${profile.userId}`);
+                console.log('Uploading business card...');
+                const storageRef = ref(storage, `businessCards/${user.uid}`);
                 await uploadBytes(storageRef, businessCardFile);
                 const businessCardUrl = await getDownloadURL(storageRef);
-                // We need to add this to the update object
-                // But TypeScript might complain if 'businessCardUrl' isn't in scope or 'updateDoc' usage is rigid.
-                // Let's create a robust update object.
-                await updateDoc(doc(db, 'profiles', profile.userId), {
+                await updateDoc(doc(db, 'profiles', user.uid), {
                     businessCardUrl
                 });
             }
 
             const splitTags = (str: string) => str.split(',').map(s => s.trim()).filter(s => s);
 
-            await updateDoc(doc(db, 'profiles', profile.userId), {
-                name, companyName, title, bio, catchCopy, avatarUrl,
-                businessEmail, businessPhone, businessAddress,
-                wantTags: splitTags(wantTags),
-                giveTags: splitTags(giveTags),
-                industries: splitTags(industries),
-                updatedAt: new Date()
-            });
+            const updateData: Record<string, any> = {
+                updatedAt: serverTimestamp(),
+            };
 
+            if (name !== undefined) updateData.name = name || null;
+            if (companyName !== undefined) updateData.companyName = companyName || null;
+            if (title !== undefined) updateData.title = title || null;
+            if (bio !== undefined) updateData.bio = bio || null;
+            if (catchCopy !== undefined) updateData.catchCopy = catchCopy || null;
+            if (finalAvatarUrl !== undefined) updateData.avatarUrl = finalAvatarUrl || null;
+            if (businessEmail !== undefined) updateData.businessEmail = businessEmail || null;
+            if (businessPhone !== undefined) updateData.businessPhone = businessPhone || null;
+            if (businessAddress !== undefined) updateData.businessAddress = businessAddress || null;
+            if (wantTags !== undefined) updateData.wantTags = splitTags(wantTags);
+            if (giveTags !== undefined) updateData.giveTags = splitTags(giveTags);
+            if (industries !== undefined) updateData.industries = splitTags(industries);
+
+            console.log('Updating profile...');
+            await updateDoc(doc(db, 'profiles', user.uid), updateData);
+
+            console.log('Profile updated successfully');
             toast.success('プロフィールを更新しました');
-            router.push(`/profile/${profile.userId}`);
-        } catch (error) {
-            console.error(error);
-            toast.error('更新に失敗しました');
+            router.push(`/profile/${user.uid}`);
+        } catch (error: any) {
+            console.error('Save error:', error);
+            toast.error('保存に失敗しました: ' + error.message);
         } finally {
             setSaving(false);
+            setUploading(false);
         }
     };
 
@@ -130,7 +175,7 @@ export default function EditProfilePage() {
                     <h1 className="text-2xl font-bold text-white">プロフィール編集</h1>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleSave} className="space-y-6">
                     <Card>
                         <div className="flex flex-col items-center mb-6">
                             <div className="relative mb-4 group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
@@ -138,7 +183,7 @@ export default function EditProfilePage() {
                                 <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Camera className="w-8 h-8 text-white" />
                                 </div>
-                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                                <input type="file" ref={fileInputRef} onChange={handleAvatarChange} accept="image/*" className="hidden" />
                             </div>
                             <label className="cursor-pointer bg-surface-elevated border border-white/10 py-2 px-4 rounded-xl text-sm text-gray-300 hover:bg-white/5 transition-colors">
                                 画像を変更
@@ -193,7 +238,7 @@ export default function EditProfilePage() {
 
                     <div className="flex gap-4">
                         <Button type="button" variant="outline" className="flex-1" onClick={() => router.back()}>キャンセル</Button>
-                        <Button type="submit" variant="gold" className="flex-1" isLoading={saving}><Save className="w-4 h-4 mr-2" />保存する</Button>
+                        <Button type="submit" variant="gold" className="flex-1" isLoading={saving || uploading}><Save className="w-4 h-4 mr-2" />保存する</Button>
                     </div>
                 </form>
             </div>
