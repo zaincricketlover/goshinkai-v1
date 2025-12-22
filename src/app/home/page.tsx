@@ -11,14 +11,16 @@ import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
-import { LogOut, Bell } from 'lucide-react';
+import { LogOut, Bell, Heart, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { WelcomeModal } from '@/components/ui/WelcomeModal';
 import { SetInviteCodeModal } from '@/components/ui/SetInviteCodeModal';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Card } from '@/components/ui/Card';
 import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
+import { calculateMatchScore } from '@/lib/matchScore';
 import { WelcomeOnboarding } from '@/components/onboarding/WelcomeOnboarding';
 
 export default function HomePage() {
@@ -29,12 +31,15 @@ export default function HomePage() {
     const [showOnboarding, setShowOnboarding] = useState(false);
     const [showBusinessCardModal, setShowBusinessCardModal] = useState(false);
     const [actionItems, setActionItems] = useState<any[]>([]);
+    const [interestedInMe, setInterestedInMe] = useState<any[]>([]);
+    const [recommendations, setRecommendations] = useState<any[]>([]);
 
     useEffect(() => {
-        const fetchActionItems = async () => {
+        const fetchData = async () => {
             if (!profile?.userId) return;
 
             try {
+                // 1. 今日のアクション
                 const connectionsRef = collection(db, 'connections');
                 const q = query(
                     connectionsRef,
@@ -48,48 +53,49 @@ export default function HomePage() {
 
                 for (const docSnap of snapshot.docs) {
                     const data = docSnap.data();
-
-                    // フォローアップ日が今日以前
                     if (data.followUpDate) {
                         const followUpDate = data.followUpDate.toDate();
                         if (followUpDate <= now) {
-                            const profileSnap = await getDoc(doc(db, 'profiles', data.connectedUserId));
-                            if (profileSnap.exists()) {
-                                items.push({
-                                    type: 'followUp',
-                                    connectionId: docSnap.id,
-                                    profile: profileSnap.data(),
-                                    date: followUpDate,
-                                });
-                            }
-                        }
-                    }
-
-                    // 30日以上連絡していない
-                    if (data.lastContactedAt) {
-                        const lastContact = data.lastContactedAt.toDate();
-                        const daysSince = Math.floor((now.getTime() - lastContact.getTime()) / (1000 * 60 * 60 * 24));
-                        if (daysSince >= 30) {
-                            const profileSnap = await getDoc(doc(db, 'profiles', data.connectedUserId));
-                            if (profileSnap.exists()) {
-                                items.push({
-                                    type: 'noContact',
-                                    connectionId: docSnap.id,
-                                    profile: profileSnap.data(),
-                                    daysSince,
-                                });
+                            const pSnap = await getDoc(doc(db, 'profiles', data.connectedUserId));
+                            if (pSnap.exists()) {
+                                items.push({ type: 'followUp', connectionId: docSnap.id, profile: pSnap.data(), date: followUpDate });
                             }
                         }
                     }
                 }
+                setActionItems(items.slice(0, 5));
 
-                setActionItems(items.slice(0, 5)); // 最大5件
+                // 2. あなたに興味がある人
+                const interestedRef = collection(db, 'interests');
+                const iq = query(interestedRef, where('toUserId', '==', profile.userId));
+                const iSnapshot = await getDocs(iq);
+                const interested: any[] = [];
+                for (const iDoc of iSnapshot.docs) {
+                    const fromUserId = iDoc.data().fromUserId;
+                    const pSnap = await getDoc(doc(db, 'profiles', fromUserId));
+                    if (pSnap.exists()) interested.push({ userId: fromUserId, ...pSnap.data() });
+                }
+                setInterestedInMe(interested);
+
+                // 3. おすすめメンバー
+                const profilesRef = collection(db, 'profiles');
+                const pSnapshot = await getDocs(query(profilesRef, limit(20)));
+                const allProfiles: any[] = [];
+                pSnapshot.forEach(d => {
+                    if (d.id !== profile.userId) {
+                        const pData = d.data();
+                        const matchResult = calculateMatchScore(profile, pData as any);
+                        allProfiles.push({ userId: d.id, ...pData, matchScore: matchResult.score });
+                    }
+                });
+                setRecommendations(allProfiles.sort((a, b) => b.matchScore - a.matchScore).slice(0, 3));
+
             } catch (error) {
-                console.error('Error fetching action items:', error);
+                console.error('Error fetching dashboard data:', error);
             }
         };
 
-        fetchActionItems();
+        fetchData();
     }, [profile?.userId]);
 
     useEffect(() => {
@@ -250,9 +256,95 @@ export default function HomePage() {
                             </motion.section>
                         )}
 
-                        <motion.section variants={fadeInUp}>
-                            <RecommendedMembers />
-                        </motion.section>
+                        {/* あなたに興味がある人 */}
+                        {interestedInMe.length > 0 && (
+                            <motion.section variants={fadeInUp}>
+                                <Card className="border-accent/20 mb-6 bg-surface/50 backdrop-blur-sm">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="text-sm font-bold text-accent flex items-center gap-2">
+                                            <Heart className="w-4 h-4 fill-accent" />
+                                            あなたに興味がある人
+                                        </h3>
+                                        <button
+                                            onClick={() => router.push('/connections')}
+                                            className="text-xs text-accent hover:underline"
+                                        >
+                                            すべて見る →
+                                        </button>
+                                    </div>
+                                    <div className="space-y-2">
+                                        {interestedInMe.slice(0, 3).map(person => (
+                                            <div
+                                                key={person.userId}
+                                                className="flex items-center gap-3 p-2 bg-surface rounded-lg cursor-pointer hover:bg-surface-elevated border border-white/5"
+                                                onClick={() => router.push(`/profile/${person.userId}`)}
+                                            >
+                                                <Avatar src={person.avatarUrl} alt={person.name || ''} size="sm" />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-white text-sm font-medium truncate">{person.name}</p>
+                                                    <p className="text-xs text-gray-500 truncate">{person.companyName}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            </motion.section>
+                        )}
+
+                        {/* あなたにおすすめ */}
+                        {recommendations.length > 0 && (
+                            <motion.section variants={fadeInUp}>
+                                <Card className="border-white/5 mb-6 bg-surface/30">
+                                    <h3 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2">
+                                        <Sparkles className="w-4 h-4 text-yellow-500" />
+                                        あなたにおすすめ
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {recommendations.slice(0, 3).map((person, index) => (
+                                            <div
+                                                key={person.userId}
+                                                className="flex items-center gap-3 p-3 bg-surface rounded-lg cursor-pointer hover:bg-surface-elevated transition-colors border border-white/5"
+                                                onClick={() => router.push(`/profile/${person.userId}`)}
+                                            >
+                                                <div className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs ${index === 0 ? 'bg-yellow-500 text-black' :
+                                                    index === 1 ? 'bg-gray-400 text-black' :
+                                                        'bg-amber-700 text-white'
+                                                    }`}>
+                                                    {index + 1}
+                                                </div>
+
+                                                <Avatar
+                                                    src={person.avatarUrl}
+                                                    alt={person.name || ''}
+                                                    size="md"
+                                                    rank={person.rankBadge}
+                                                />
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-white font-medium truncate">{person.name}</p>
+                                                        <Badge rank={person.rankBadge} size="sm" showLabel={false} />
+                                                    </div>
+                                                    <p className="text-xs text-gray-400 truncate">{person.companyName}</p>
+
+                                                    {person.matchScore && (
+                                                        <div className="flex items-center gap-2 mt-1.5">
+                                                            <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                                                <div
+                                                                    className="h-full bg-accent rounded-full"
+                                                                    style={{ width: `${person.matchScore}%` }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-[10px] font-bold text-accent">{person.matchScore}%</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </Card>
+                            </motion.section>
+                        )}
                     </motion.div>
 
                     <motion.div

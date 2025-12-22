@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { useRouter } from 'next/navigation';
 import { doc, getDoc, collection, query, where, getDocs, addDoc, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { Event, UserProfile, EventParticipant, ParticipationStatus } from '@/lib/types';
@@ -12,11 +13,12 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { toast } from 'sonner';
 import { use } from 'react';
-import { Check, Star, X, MapPin, ExternalLink, Calendar as CalendarIcon, Navigation, Plus } from 'lucide-react';
+import { Check, Star, X, MapPin, ExternalLink, Calendar as CalendarIcon, Navigation, Plus, QrCode } from 'lucide-react';
 
 export default function EventDetailPage({ params }: { params: Promise<{ eventId: string }> }) {
     const resolvedParams = use(params);
     const { user, profile } = useAuth();
+    const router = useRouter();
     const [event, setEvent] = useState<Event | null>(null);
     const [participants, setParticipants] = useState<UserProfile[]>([]);
     const [myStatus, setMyStatus] = useState<ParticipationStatus | null>(null);
@@ -270,6 +272,20 @@ export default function EventDetailPage({ params }: { params: Promise<{ eventId:
                 )}
 
                 <ParticipantList participants={participants} currentUserProfile={profile} />
+
+                {/* チェックインボタン */}
+                {myStatus === 'going' && (
+                    <div className="pt-4">
+                        <Button
+                            variant="gold"
+                            className="w-full"
+                            onClick={() => router.push(`/events/${event.id}/checkin`)}
+                        >
+                            <QrCode className="w-4 h-4 mr-2" />
+                            チェックイン
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* Fixed Bottom Action Bar */}

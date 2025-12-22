@@ -84,19 +84,29 @@ export default function EditProfilePage() {
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+        console.log('=== handleSave START ===');
+        console.log('User:', user?.uid);
+        console.log('Avatar file:', avatarFile);
+
         if (!user) {
+            console.log('ERROR: No user');
             toast.error('ログインしてください');
             return;
         }
 
         setSaving(true);
+        console.log('Saving set to true');
 
         try {
             let finalAvatarUrl = profile.avatarUrl;
+            console.log('Current avatar URL:', finalAvatarUrl);
 
             if (avatarFile) {
+                console.log('=== UPLOAD START ===');
+                console.log('File name:', avatarFile.name);
+                console.log('File size:', avatarFile.size);
+                console.log('File type:', avatarFile.type);
                 setUploading(true);
-                console.log('Uploading avatar...');
 
                 try {
                     const timestamp = Date.now();
@@ -106,16 +116,22 @@ export default function EditProfilePage() {
 
                     console.log('Storage path:', storagePath);
                     const storageRef = ref(storage, storagePath);
+                    console.log('Storage ref created');
 
+                    console.log('Uploading...');
                     const uploadResult = await uploadBytes(storageRef, avatarFile);
-                    console.log('Upload completed:', uploadResult);
+                    console.log('Upload result:', uploadResult);
 
+                    console.log('Getting download URL...');
                     finalAvatarUrl = await getDownloadURL(uploadResult.ref);
                     console.log('Download URL:', finalAvatarUrl);
 
                 } catch (uploadError: any) {
-                    console.error('Upload error:', uploadError);
-                    toast.error('画像のアップロードに失敗しました: ' + uploadError.message);
+                    console.error('=== UPLOAD ERROR ===');
+                    console.error('Error code:', uploadError.code);
+                    console.error('Error message:', uploadError.message);
+                    console.error('Full error:', uploadError);
+                    toast.error('画像アップロード失敗: ' + uploadError.message);
                     setSaving(false);
                     setUploading(false);
                     return;
@@ -124,10 +140,11 @@ export default function EditProfilePage() {
             }
 
             if (businessCardFile) {
-                console.log('Uploading business card...');
+                console.log('=== BUSINESS CARD UPLOAD START ===');
                 const storageRef = ref(storage, `businessCards/${user.uid}`);
                 await uploadBytes(storageRef, businessCardFile);
                 const businessCardUrl = await getDownloadURL(storageRef);
+                console.log('Business card URL:', businessCardUrl);
                 await updateDoc(doc(db, 'profiles', user.uid), {
                     businessCardUrl
                 });
@@ -135,6 +152,7 @@ export default function EditProfilePage() {
 
             const splitTags = (str: string) => str.split(',').map(s => s.trim()).filter(s => s);
 
+            console.log('=== UPDATE PROFILE START ===');
             const updateData: Record<string, any> = {
                 updatedAt: serverTimestamp(),
             };
@@ -152,6 +170,7 @@ export default function EditProfilePage() {
             if (giveTags !== undefined) updateData.giveTags = splitTags(giveTags);
             if (industries !== undefined) updateData.industries = splitTags(industries);
 
+            console.log('Update data:', updateData);
             console.log('Updating profile...');
             await updateDoc(doc(db, 'profiles', user.uid), updateData);
 
@@ -159,9 +178,13 @@ export default function EditProfilePage() {
             toast.success('プロフィールを更新しました');
             router.push(`/profile/${user.uid}`);
         } catch (error: any) {
-            console.error('Save error:', error);
+            console.error('=== SAVE ERROR ===');
+            console.error('Error code:', error.code);
+            console.error('Error message:', error.message);
+            console.error('Full error:', error);
             toast.error('保存に失敗しました: ' + error.message);
         } finally {
+            console.log('=== handleSave END ===');
             setSaving(false);
             setUploading(false);
         }
